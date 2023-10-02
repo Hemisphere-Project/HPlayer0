@@ -3,6 +3,8 @@
 #include "lora.h"
 #include "audio.h"
 
+int playingIndex = 0;
+
 
 void setup(void) {
 
@@ -45,7 +47,10 @@ void loop(void)
         M5.Display.drawCenterString( String(cmd), 160, 90);
 
         if (cmd == 0) audioStop();
-        else if (cmd <= file_count) audioPlay(filenames[cmd-1]);
+        else if (cmd <= file_count) {
+            audioPlay(filenames[cmd-1]);
+            playingIndex = cmd-1;
+        }
     }    
     
     audioLoop();
@@ -53,17 +58,19 @@ void loop(void)
     M5.update();
     
     if (M5.BtnA.wasClicked()) {
-        loraSend(1);
-        audioPlay(filenames[0]);
+        playingIndex = (playingIndex + file_count - 1) % file_count;
+        loraSend(playingIndex+1);
+        audioPlay(filenames[playingIndex]);
     }
 
     if (M5.BtnB.wasClicked()) {
-        loraSend(2);
-        audioPlay(filenames[1]);
+        loraSend(0);
+        audioStop();
     }
 
     if (M5.BtnC.wasClicked()) {
-        loraSend(0);
-        audioStop();
+        playingIndex = (playingIndex + 1) % file_count;
+        loraSend(playingIndex+1);
+        audioPlay(filenames[playingIndex]);
     }
 }

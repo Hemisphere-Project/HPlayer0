@@ -14,7 +14,7 @@ void loraSend(byte cmd)
     LoRa.print(cmd, 0);           // add payload.  添加有效载荷
     LoRa.endPacket();  // finish packet and send it.  完成数据包并发送
 
-    M5.Display.drawRightString( String(cmd), 10, 120);
+    M5.Display.drawString( String(cmd), 10, 120);
 }
 
 bool loraLoop() 
