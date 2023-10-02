@@ -22,7 +22,7 @@ void audioSetup()
     int dma_buffer_count = 8;
     out  = new AudioOutputI2S(0, AudioOutputI2S::EXTERNAL_I2S, dma_buffer_count, AudioOutputI2S::APLL_ENABLE);
     out->SetPinout(13, 0, 15);
-    out->SetGain(1.0);
+    out->SetGain(0.7);
     out->SetChannels(2);
 
     // Create array of filenames from SD card

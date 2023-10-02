@@ -25,6 +25,11 @@ void setup(void) {
     LoRa.setPins(); 
     while (!LoRa.begin(868E6))  M5.Display.drawCenterString("LoRa not found..", 160, 70);
     M5.Display.drawCenterString("    LoRa ok !    ", 160, 70);
+    LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
+    LoRa.setSpreadingFactor(10);        // 6: faster - 12: stronger
+    LoRa.setSignalBandwidth(125E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
+    LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
+
 
     // AUDIO init
     audioSetup();
@@ -34,22 +39,31 @@ void setup(void) {
 void loop(void) 
 {
     loraLoop();
+
+    while (!loraStackIsEmpty()) {
+        byte cmd = loraStackPop();
+        M5.Display.drawCenterString( String(cmd), 160, 90);
+
+        if (cmd == 0) audioStop();
+        else if (cmd <= file_count) audioPlay(filenames[cmd-1]);
+    }    
+    
     audioLoop();
 
     M5.update();
     
     if (M5.BtnA.wasClicked()) {
-        loraSend("play "+filenames[0]);
+        loraSend(1);
         audioPlay(filenames[0]);
     }
 
     if (M5.BtnB.wasClicked()) {
-        loraSend("play "+filenames[1]);
+        loraSend(2);
         audioPlay(filenames[1]);
     }
 
     if (M5.BtnC.wasClicked()) {
-        loraSend("stop");
+        loraSend(0);
         audioStop();
     }
 }
