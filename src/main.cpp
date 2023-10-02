@@ -46,10 +46,10 @@ void loop(void)
         byte cmd = loraStackPop();
         M5.Display.drawCenterString( String(cmd), 160, 90);
 
-        if (cmd == 0) audioStop();
-        else if (cmd <= file_count) {
-            audioPlay(filenames[cmd-1]);
-            playingIndex = cmd-1;
+        if (cmd == 255) audioStop();
+        else if (cmd < file_count) {
+            audioPlay(filenames[cmd]);
+            playingIndex = cmd;
         }
     }    
     
@@ -59,18 +59,18 @@ void loop(void)
     
     if (M5.BtnA.wasClicked()) {
         playingIndex = (playingIndex + file_count - 1) % file_count;
-        loraSend(playingIndex+1);
+        loraSend(playingIndex);
         audioPlay(filenames[playingIndex]);
     }
 
     if (M5.BtnB.wasClicked()) {
-        loraSend(0);
+        loraSend(255);
         audioStop();
     }
 
     if (M5.BtnC.wasClicked()) {
         playingIndex = (playingIndex + 1) % file_count;
-        loraSend(playingIndex+1);
+        loraSend(playingIndex);
         audioPlay(filenames[playingIndex]);
     }
 }
