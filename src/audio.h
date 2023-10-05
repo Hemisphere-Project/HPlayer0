@@ -6,10 +6,12 @@
 #include "AudioFileSourceSD.h"
 #include "AudioGeneratorWAV.h"
 #include "AudioOutputI2S.h"
+#include "class/AudioOutputA2DP.h"
 
 AudioFileSourceSD *file;
 AudioGeneratorWAV *wav;
-AudioOutputI2S *out = NULL;
+AudioOutputI2S *outLINE = NULL;
+AudioOutputA2DP *outBT = NULL;
 
 String filenames[64];
 int current_file = 0;
@@ -20,10 +22,15 @@ void audioSetup()
 {
     // AUDIO init
     int dma_buffer_count = 8;
-    out  = new AudioOutputI2S(0, AudioOutputI2S::EXTERNAL_I2S, dma_buffer_count, AudioOutputI2S::APLL_ENABLE);
-    out->SetPinout(13, 0, 15);
-    out->SetGain(0.7);
-    out->SetChannels(2);
+    outLINE  = new AudioOutputI2S(0, AudioOutputI2S::EXTERNAL_I2S, dma_buffer_count, AudioOutputI2S::APLL_ENABLE);
+    outLINE->SetPinout(13, 0, 15);
+    outLINE->SetGain(0.7);
+    outLINE->SetChannels(2);
+
+    outBT = new AudioOutputA2DP();  
+    outBT->SetGain(0.7);
+
+    outNULL = new AudioOutputNull();
 
     // Create array of filenames from SD card
     file_count = 0;
@@ -61,26 +68,18 @@ void audioPlay(String filepath)
     
     file = new AudioFileSourceSD(filepath.c_str());
     wav  = new AudioGeneratorWAV();
-    wav->begin(file, out);
+    // wav->begin(file, outLINE);
+    wav->begin(file, outBT);
 
     uint32_t trigAt = 0;
-
-    // while(wav->loop());
-
-    // Serial.println("WAV Done");
-
-    // // Might need to flush DMA buffer?
-
-    // wav->stop();
-
-    // delete file;
-    // delete wav;
-    // wav = NULL;
 }
 
 void audioLoop()
 {
-    if (wav == NULL || wav->loop()) return;
+    if (wav == NULL || wav->loop()) {
+        if (wav) Serial.printf("WAV Loop %d\n", outNULL->GetSamples());
+        return;
+    }
     Serial.println("WAV Done");
     audioStop();
 }
