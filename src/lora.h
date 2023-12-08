@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include <M5LoRa.h>
 #include <M5Unified.h>
+#include "class/M5LoRa.h"
 
 // Fifo stack using circular buffer
 #define STACK_SIZE 10

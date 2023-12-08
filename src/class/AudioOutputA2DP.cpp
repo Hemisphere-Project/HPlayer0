@@ -47,7 +47,7 @@ int32_t feedBT(Frame *frame, int32_t frame_count)
     return frame_count;
 }
 
-AudioOutputA2DP::AudioOutputA2DP()
+AudioOutputA2DP::AudioOutputA2DP(const char* ssid)
 {
 //   buffSize = buffSizeSamples;
 //   leftSample = (int16_t*)malloc(sizeof(int16_t) * buffSize);
@@ -56,8 +56,8 @@ AudioOutputA2DP::AudioOutputA2DP()
 //   readPtr = 0;
 //   sink = dest;
     a2dp_source.set_auto_reconnect(true);
-    a2dp_source.start("LEXON MINO L", feedBT);  
-    a2dp_source.set_volume(30);
+    a2dp_source.start(ssid, feedBT);  
+    a2dp_source.set_volume(80);
 }
 
 AudioOutputA2DP::~AudioOutputA2DP()
@@ -69,6 +69,13 @@ AudioOutputA2DP::~AudioOutputA2DP()
 bool AudioOutputA2DP::begin()
 {
   samples = 0;
+  return true;
+}
+
+bool AudioOutputA2DP::SetGain(float f)
+{
+  if (f>1.0) f = 1.0;
+  a2dp_source.set_volume(f*100);
   return true;
 }
 

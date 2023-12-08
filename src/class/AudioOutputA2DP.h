@@ -20,14 +20,16 @@
 
 #pragma once
 
+#include <Arduino.h>
 #include "AudioOutput.h"
 
 class AudioOutputA2DP : public AudioOutput
 {
   public:
-    AudioOutputA2DP();
+    AudioOutputA2DP(const char* ssid);
     virtual ~AudioOutputA2DP() override;
     virtual bool begin() override;
+    virtual bool SetGain(float f) override;
     virtual bool ConsumeSample(int16_t sample[2]) override;
     virtual bool stop() override;
 
