@@ -4,9 +4,8 @@
 #include <SD.h>
 
 #include "lora.h"
-
 #include "audio.h"
-
+#include "usbmidi.h"
 #include "menu.h"
 
 int playingIndex = 0;
@@ -32,16 +31,22 @@ void setup(void) {
     M5.Display.drawCenterString("      SD ok !      ", 160, 50);    
 
     // LORA init 868MHz
-    LoRa.setPins(); 
-    while (!LoRa.begin(868E6)) M5.Display.drawCenterString("LoRa not found..", 160, 70);
-    M5.Display.drawCenterString("    LoRa ok !    ", 160, 70);
-    LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
-    LoRa.setSpreadingFactor(10);        // 6: faster - 12: stronger
-    LoRa.setSignalBandwidth(125E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
-    LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
+    // LoRa.setPins(); 
+    // while (!LoRa.begin(868E6)) M5.Display.drawCenterString("LoRa not found..", 160, 70);
+    // M5.Display.drawCenterString("    LoRa ok !    ", 160, 70);
+    // LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
+    // LoRa.setSpreadingFactor(10);        // 6: faster - 12: stronger
+    // LoRa.setSignalBandwidth(125E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
+    // LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
+
+    // MIDI init
+    if (!midiSetup()) M5.Display.drawCenterString("USB not found..", 160, 90);
+    else M5.Display.drawCenterString("    USB ok !    ", 160, 90);
+
+    delay(1000);
 
     // Interface
-    menu_init();
+    // menu_init();
 
     // AUDIO init
     audioSetup();
@@ -50,7 +55,10 @@ void setup(void) {
 
 void loop(void) 
 {   
-    loraLoop();
+    // loraLoop();
+    midiLoop();
+    audioLoop();
+    // menu_loop();
 
     while (!loraStackIsEmpty()) {
         byte cmd = loraStackPop();
@@ -63,9 +71,7 @@ void loop(void)
         }
     }    
     
-    audioLoop();
     
-    menu_loop();
 
     // M5.update();
     
