@@ -24,8 +24,8 @@ String fileindexed[MAX_FILES];
 String files[MAX_FILES];
 int file_count = 0;
 
-int current_key = 0;
-int current_index = 0;
+byte current_key = 255;
+byte current_index = 255;
 String current_name = "";
 
 
@@ -81,7 +81,7 @@ void audioStop()
 void audioSetup(String name)
 {
     sdInit();
-    
+
     if (out != NULL) {
         audioStop();
         delete out;
@@ -139,24 +139,25 @@ void audioPlay(String filepath = "")
 }
 
 // PLAY file count
-void audioPlayIndex(int i) 
+void audioPlayIndex(byte i) 
 {   
+    if (i == 255) audioStop();
     if (file_count == 0) return;
     i = i % file_count;
     current_index = i;
-    current_key = -1;
+    current_key = 255;
     audioPlay(files[i]);
 }
 
 // PLAY file starting with xx_
-void audioPlayKey(int key) 
+void audioPlayKey(byte key) 
 {   
+    if (key == 255) audioStop();
     if (key < 0 || key >= MAX_FILES) return;
-    String filename = fileindexed[key];
-    if (filename.length() == 0) return;
+    if (fileindexed[key].length() == 0) return;
     current_key = key;
-    current_index = -1;
-    audioPlay(filename);
+    current_index = 255;
+    audioPlay(fileindexed[key]);
 }
 
 void audioLoop()
@@ -178,4 +179,21 @@ String audioOUTname() {
     return audioOutName;
 }
 
+byte audioNextKey() {
+    byte nextKey;
+    for (byte i=1; i<MAX_FILES; i++) {
+        nextKey = (current_key+i) % MAX_FILES;
+        if (fileindexed[nextKey].length() > 0) return nextKey;
+    } 
+    return current_key;
+}
+
+byte audioPrevKey() {
+    byte prevKey;
+    for (byte i=1; i<MAX_FILES; i++) {
+        prevKey = (current_key-i+MAX_FILES) % MAX_FILES;
+        if (fileindexed[prevKey].length() > 0) return prevKey;
+    } 
+    return current_key;
+}
 

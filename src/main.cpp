@@ -11,6 +11,9 @@
 
 Preferences preferences;
 
+bool midiDetected = false;
+bool sdDetected = false;
+
 void setup(void) {
 
     Serial.begin(115200);
@@ -22,40 +25,53 @@ void setup(void) {
     // Preferences init
     preferences.begin("HPlayer", false);
     if (preferences.getString("audioout", "") == "")
-        preferences.putString("audioout", "SPEAKER");
+        preferences.putString("audioout", "LINE");
     
     // DISPLAY init
     M5.Display.clear(TFT_BLACK);
     M5.Display.setFont(&DejaVu18);
     M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-    M5.Display.drawCenterString("= HPlayer 0 =", 160, 20);
-
-
-    // LORA init 868MHz
-    while (!loraSetup()) M5.Display.drawCenterString("LoRa not found..", 160, 50);
-    M5.Display.drawCenterString("    LoRa ok !    ", 160, 50);
+    M5.Display.drawString("= HPlayer 0 =", 10, 20);
 
     // USB MIDI init
-    if (!midiSetup()) M5.Display.drawCenterString("USB not found..", 160, 70);
-    else M5.Display.drawCenterString("    USB ok !    ", 160, 70);
+    midiSetup();
+    M5.Display.drawString("USB", 10, 50);
+    M5.Display.drawString(": not found.." , 80, 50);
 
-    delay(1000);
-
-    // Interface
-    // menu_init();
+    // LORA init 868MHz
+    M5.Display.drawString("LoRa", 10, 70);
+    if (!loraSetup()) M5.Display.drawString(": not found..", 80, 70);
+    else M5.Display.drawString(": ok !      ", 80, 70);
 
     // AUDIO init
     audioSetup( preferences.getString("audioout") );
-    M5.Display.drawCenterString("    Audio: "+audioOUTname(), 160, 90);
+    M5.Display.drawString("Audio", 10, 90);
+    M5.Display.drawString(": "+audioOUTname(), 80, 90);
 
     // SD CARD ready ?
-    if (audioSDok()) M5.Display.drawCenterString("    SD ok!    ", 160, 110);
-    else M5.Display.drawCenterString("SD not found..", 160, 110);
+    M5.Display.drawString("SD", 10, 110);
+    M5.Display.drawString(": not found.." , 80, 110);
+
+    // Interface
+    // delay(3000);
+    // menu_init();
 
 }
 
 void loop(void) 
 {   
+    // MIDI hot plug
+    if (!midiDetected && midiOK()) {
+        midiDetected = true;
+        M5.Display.drawString(": ok !          ", 80, 50);
+    }
+
+    // SD hot plug
+    if (!sdDetected && audioSDok()) {
+        sdDetected = true;
+        M5.Display.drawString(": ok !          ", 80, 110);
+    }
+
     loraLoop();
     midiLoop();
     audioLoop();
@@ -63,32 +79,33 @@ void loop(void)
 
     while (!loraStackIsEmpty()) {
         byte cmd = loraStackPop();
-        M5.Display.drawCenterString( String(cmd), 160, 90);
-        
-        if (cmd == 255) audioStop();
-        else audioPlayKey(cmd);
-    }    
-    
-    
+        audioPlayKey(cmd);
+    }
+
+    while (!midiStackIsEmpty()) {
+        byte cmd = midiStackPop();
+        loraSend(cmd);
+        audioPlayKey(cmd);
+    } 
+
 
     M5.update();
     
-    // if (M5.BtnA.wasClicked()) {
-    //     int i = audioNextIndex();
-        
-    //     loraSend(playingIndex);
-    //     audioPlay(filenames[playingIndex]);
-    // }
+    if (M5.BtnA.wasClicked()) {
+        byte i = audioPrevKey();
+        loraSend(i);
+        audioPlayKey(i);
+    }
 
-    // if (M5.BtnB.wasClicked()) {
-    //     loraSend(255);
-    //     audioStop();
-    // }
+    if (M5.BtnB.wasClicked()) {
+        loraSend(255);
+        audioStop();
+    }
 
-    // if (M5.BtnC.wasClicked()) {
-    //     playingIndex = (playingIndex + 1) % file_count;
-    //     loraSend(playingIndex);
-    //     audioPlay(filenames[playingIndex]);
-    // }
+    if (M5.BtnC.wasClicked()) {
+        byte i = audioNextKey();
+        loraSend(i);
+        audioPlayKey(i);
+    }
 }
 
