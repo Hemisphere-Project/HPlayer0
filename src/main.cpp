@@ -2,14 +2,14 @@
 
 #include <M5Unified.h>
 #include <SD.h>
+#include <Preferences.h>
 
 #include "lora.h"
 #include "audio.h"
 #include "usbmidi.h"
-#include "menu.h"
+#include "ui.h"
 
-int playingIndex = 0;
-
+Preferences preferences;
 
 void setup(void) {
 
@@ -19,37 +19,38 @@ void setup(void) {
     M5.begin();
     M5.Power.begin();
 
+    // Preferences init
+    preferences.begin("HPlayer", false);
+    if (preferences.getString("audioout", "") == "")
+        preferences.putString("audioout", "SPEAKER");
+    
     // DISPLAY init
     M5.Display.clear(TFT_BLACK);
     M5.Display.setFont(&DejaVu18);
     M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
     M5.Display.drawCenterString("= HPlayer 0 =", 160, 20);
 
-    
-    // SD CARD init
-    while (!SD.begin(4)) M5.Display.drawCenterString("SD not found..", 160, 50);
-    M5.Display.drawCenterString("      SD ok !      ", 160, 50);    
 
     // LORA init 868MHz
-    LoRa.setPins(); 
-    while (!LoRa.begin(868E6)) M5.Display.drawCenterString("LoRa not found..", 160, 70);
-    M5.Display.drawCenterString("    LoRa ok !    ", 160, 70);
-    LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
-    LoRa.setSpreadingFactor(10);        // 6: faster - 12: stronger
-    LoRa.setSignalBandwidth(125E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
-    LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
+    while (!loraSetup()) M5.Display.drawCenterString("LoRa not found..", 160, 50);
+    M5.Display.drawCenterString("    LoRa ok !    ", 160, 50);
 
-    // MIDI init
-    if (!midiSetup()) M5.Display.drawCenterString("USB not found..", 160, 90);
-    else M5.Display.drawCenterString("    USB ok !    ", 160, 90);
+    // USB MIDI init
+    if (!midiSetup()) M5.Display.drawCenterString("USB not found..", 160, 70);
+    else M5.Display.drawCenterString("    USB ok !    ", 160, 70);
 
     delay(1000);
 
     // Interface
-    menu_init();
+    // menu_init();
 
     // AUDIO init
-    audioSetup();
+    audioSetup( preferences.getString("audioout") );
+    M5.Display.drawCenterString("    Audio: "+audioOUTname(), 160, 90);
+
+    // SD CARD ready ?
+    if (audioSDok()) M5.Display.drawCenterString("    SD ok!    ", 160, 110);
+    else M5.Display.drawCenterString("SD not found..", 160, 110);
 
 }
 
@@ -58,25 +59,23 @@ void loop(void)
     loraLoop();
     midiLoop();
     audioLoop();
-    menu_loop();
+    // menu_loop();
 
     while (!loraStackIsEmpty()) {
         byte cmd = loraStackPop();
         M5.Display.drawCenterString( String(cmd), 160, 90);
-
+        
         if (cmd == 255) audioStop();
-        else if (cmd < file_count) {
-            audioPlay(filenames[cmd]);
-            playingIndex = cmd;
-        }
+        else audioPlayKey(cmd);
     }    
     
     
 
-    // M5.update();
+    M5.update();
     
     // if (M5.BtnA.wasClicked()) {
-    //     playingIndex = (playingIndex + file_count - 1) % file_count;
+    //     int i = audioNextIndex();
+        
     //     loraSend(playingIndex);
     //     audioPlay(filenames[playingIndex]);
     // }

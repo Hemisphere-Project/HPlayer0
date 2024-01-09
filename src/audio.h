@@ -8,6 +8,9 @@
 #include <AudioOutputI2S.h>
 #include "class/AudioOutputA2DP.h"
 
+bool sdOK = false;
+String audioOutName = "";
+
 AudioFileSourceSD *file;
 AudioGeneratorWAV *wav;
 
@@ -15,29 +18,23 @@ AudioOutputI2S *outLINE = NULL;
 AudioOutputA2DP *outBT = NULL;
 AudioOutput *out = NULL;
 
-String filenames[64];
-int current_file = 0;
+const int MAX_FILES = 64;
+
+String fileindexed[MAX_FILES];
+String files[MAX_FILES];
 int file_count = 0;
 
+int current_key = 0;
+int current_index = 0;
+String current_name = "";
 
-void audioSetup(const char* btSSID = NULL)
+
+
+void sdInit()
 {
-    // AUDIO I2S
-    if (btSSID == NULL) {
-        int dma_buffer_count = 8;
-        outLINE  = new AudioOutputI2S(0, AudioOutputI2S::EXTERNAL_I2S, dma_buffer_count, AudioOutputI2S::APLL_ENABLE);
-        outLINE->SetPinout(13, 0, 15);
-        outLINE->SetChannels(2);
-        out = outLINE;
-    }
-
-    // AUDIO BT
-    else {
-        outBT = new AudioOutputA2DP(btSSID);  
-        out = outBT;
-    }
-
-    out->SetGain(0.7);
+    if (sdOK) return;
+    sdOK = SD.begin(4);
+    if (!sdOK) return;
 
     // Create array of filenames from SD card
     file_count = 0;
@@ -48,13 +45,28 @@ void audioSetup(const char* btSSID = NULL)
         if (entry.isDirectory()) continue;
         String filename = entry.name();
         if (filename.endsWith(".wav")) {
-            filenames[file_count] = filename;
+
+            // Add filename to array
+            if (file_count >= MAX_FILES) break;
+            files[file_count] = filename;
             file_count++;
+
+            // Add filename to indexed array
+            String indexS = "";
+            for (int i=0; i<filename.length(); i++) {
+                if (!isDigit(filename[i])) break;
+                indexS += filename[i];
+            }
+            if (indexS.length() == 0) continue;
+            int index = indexS.toInt();
+            if (index >= MAX_FILES) continue;
+            fileindexed[index] = filename;
+            
+            Serial.printf("File %d: %s\n", index, filename.c_str());
         }
         entry.close();
-        Serial.println(filename);
     }
-    root.close();    
+    root.close();   
 }
 
 void audioStop()
@@ -66,9 +78,54 @@ void audioStop()
     wav = NULL;
 }
 
-void audioPlay(String filepath) 
+void audioSetup(String name)
+{
+    sdInit();
+    
+    if (out != NULL) {
+        audioStop();
+        delete out;
+    }
+
+    audioOutName = name;
+
+    // AUDIO I2S
+    if (name == "LINE") {
+        int dma_buffer_count = 8;
+        outLINE  = new AudioOutputI2S(0, AudioOutputI2S::EXTERNAL_I2S, dma_buffer_count, AudioOutputI2S::APLL_ENABLE);
+        outLINE->SetPinout(13, 0, 15);
+        outLINE->SetChannels(2);
+        outLINE->SetOutputModeMono(false);
+        out = outLINE;
+    }
+
+    // AUDIO SPEAKER
+    else if (name == "SPEAKER") {
+        outLINE = new AudioOutputI2S(0, AudioOutputI2S::INTERNAL_DAC);
+        outLINE->SetChannels(2);
+        outLINE->SetOutputModeMono(true);
+        out = outLINE;
+    }
+
+    // AUDIO BT
+    else {
+        outBT = new AudioOutputA2DP(name.c_str());  
+        out = outBT;
+    }
+
+    out->SetGain(0.7);
+}
+
+// PLAY filename
+void audioPlay(String filepath = "") 
 {   
     audioStop();
+    if (out == NULL || !sdOK) return;
+
+    if (filepath.length() == 0) filepath = current_name;
+    if (filepath.length() == 0) return;
+
+    current_name = filepath;
 
     filepath = "/"+filepath;
     Serial.println("Play "+filepath);
@@ -78,10 +135,33 @@ void audioPlay(String filepath)
     wav->begin(file, out);
 
     uint32_t trigAt = 0;
-    }
+
+}
+
+// PLAY file count
+void audioPlayIndex(int i) 
+{   
+    if (file_count == 0) return;
+    i = i % file_count;
+    current_index = i;
+    current_key = -1;
+    audioPlay(files[i]);
+}
+
+// PLAY file starting with xx_
+void audioPlayKey(int key) 
+{   
+    if (key < 0 || key >= MAX_FILES) return;
+    String filename = fileindexed[key];
+    if (filename.length() == 0) return;
+    current_key = key;
+    current_index = -1;
+    audioPlay(filename);
+}
 
 void audioLoop()
 {
+    sdInit();
     if (wav == NULL || wav->loop()) {
         // if (wav) Serial.printf("WAV Loop %d\n", outNULL->GetSamples());
         return;
@@ -89,4 +169,13 @@ void audioLoop()
     Serial.println("WAV Done");
     audioStop();
 }
+
+bool audioSDok() {
+    return sdOK;
+}
+
+String audioOUTname() {
+    return audioOutName;
+}
+
 

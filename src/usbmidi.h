@@ -6,6 +6,8 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
+bool usbOK = false;
+
 void MIDI_init()
 {
   char buf[20];
@@ -80,16 +82,23 @@ void MIDI_poll()
 
 bool midiSetup()
 {
-  if (Usb.Init() == -1) return false;
-  delay( 200 );
+  if (Usb.Init() == -1) {
+    usbOK = false;
+    Serial.println("USB init failed");
+    return false;
+  }
 
-  // Register MIDI_init() function
   Midi.attachOnInit(MIDI_init);
+
+  usbOK = true;
+  Serial.println("USB init ok");
   return true;
 }
 
 void midiLoop()
 {
+  if (!usbOK) return;
+
   Usb.Task();
   if ( Midi ) {
     MIDI_poll();
