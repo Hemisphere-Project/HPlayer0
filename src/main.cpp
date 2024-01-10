@@ -41,16 +41,17 @@ void setup(void) {
     // LORA init 868MHz
     M5.Display.drawString("LoRa", 10, 70);
     if (!loraSetup()) M5.Display.drawString(": not found..", 80, 70);
-    else M5.Display.drawString(": ok !      ", 80, 70);
+    else M5.Display.drawString(": ok        ", 80, 70);
+
+    // SD CARD ready ?
+    M5.Display.drawString("SD", 10, 90);
+    M5.Display.drawString(": not found.." , 80, 90);
 
     // AUDIO init
     audioSetup( preferences.getString("audioout") );
-    M5.Display.drawString("Audio", 10, 90);
-    M5.Display.drawString(": "+audioOUTname(), 80, 90);
+    M5.Display.drawString("Audio", 10, 110);
+    M5.Display.drawString(": "+audioOUTname(), 80, 110);
 
-    // SD CARD ready ?
-    M5.Display.drawString("SD", 10, 110);
-    M5.Display.drawString(": not found.." , 80, 110);
 
     // Interface
     // delay(3000);
@@ -63,13 +64,13 @@ void loop(void)
     // MIDI hot plug
     if (!midiDetected && midiOK()) {
         midiDetected = true;
-        M5.Display.drawString(": ok !          ", 80, 50);
+        M5.Display.drawString(": ok            ", 80, 50);
     }
 
     // SD hot plug
     if (!sdDetected && audioSDok()) {
         sdDetected = true;
-        M5.Display.drawString(": ok !          ", 80, 110);
+        M5.Display.drawString(": ok            ", 80, 90);
     }
 
     loraLoop();
@@ -79,6 +80,7 @@ void loop(void)
 
     while (!loraStackIsEmpty()) {
         byte cmd = loraStackPop();
+        M5.Display.drawString( "Lora IN: "+String(cmd)+"    ", 10, 170);
         audioPlayKey(cmd);
     }
 

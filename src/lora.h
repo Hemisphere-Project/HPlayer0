@@ -38,14 +38,9 @@ bool loraLoop()
     // read packet header bytes:
     byte cmd         = LoRa.read(); // first byte is the command.  第一个字节是命令。
 
-    // M5.Lcd.setTextColor(YELLOW);
-    // M5.Lcd.println("Rcv: " + incoming);
-
     // loraStack incoming message
     loraStack[loraStackHead] = cmd;
     loraStackHead = (loraStackHead + 1) % LORA_STACK_SIZE;
-
-    M5.Display.drawString( "Lora IN: "+String(cmd)+"    ", 10, 170);
 
     return true;
 }
