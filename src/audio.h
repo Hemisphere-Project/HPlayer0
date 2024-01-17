@@ -75,7 +75,7 @@ void audioPlay(String filepath)
 void audioLoop()
 {
     if (wav == NULL || wav->loop()) {
-        if (wav) Serial.printf("WAV Loop %d\n", outBT->GetSamples());
+        // if (wav) Serial.printf("WAV Loop %d\n", outBT->GetSamples());
         return;
     }
     Serial.println("WAV Done");

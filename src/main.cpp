@@ -35,7 +35,7 @@ void setup(void) {
 
     // AUDIO init
     audioSetup();
-
+    audioPlay(filenames[playingIndex]);
 }
 
 void loop(void) 
