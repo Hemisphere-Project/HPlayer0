@@ -24,13 +24,13 @@ void setup(void) {
     M5.Display.drawCenterString("      SD ok !      ", 160, 50);    
 
     // LORA init 868MHz
-    LoRa.setPins(); 
-    while (!LoRa.begin(868E6))  M5.Display.drawCenterString("LoRa not found..", 160, 70);
-    M5.Display.drawCenterString("    LoRa ok !    ", 160, 70);
-    LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
-    LoRa.setSpreadingFactor(10);        // 6: faster - 12: stronger
-    LoRa.setSignalBandwidth(125E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
-    LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
+    // LoRa.setPins(); 
+    // while (!LoRa.begin(868E6))  M5.Display.drawCenterString("LoRa not found..", 160, 70);
+    // M5.Display.drawCenterString("    LoRa ok !    ", 160, 70);
+    // LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
+    // LoRa.setSpreadingFactor(10);        // 6: faster - 12: stronger
+    // LoRa.setSignalBandwidth(125E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
+    // LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
 
 
     // AUDIO init
@@ -40,18 +40,18 @@ void setup(void) {
 
 void loop(void) 
 {
-    loraLoop();
+    // loraLoop();
 
-    while (!loraStackIsEmpty()) {
-        byte cmd = loraStackPop();
-        M5.Display.drawCenterString( String(cmd), 160, 90);
+    // while (!loraStackIsEmpty()) {
+    //     byte cmd = loraStackPop();
+    //     M5.Display.drawCenterString( String(cmd), 160, 90);
 
-        if (cmd == 255) audioStop();
-        else if (cmd < file_count) {
-            audioPlay(filenames[cmd]);
-            playingIndex = cmd;
-        }
-    }    
+    //     if (cmd == 255) audioStop();
+    //     else if (cmd < file_count) {
+    //         audioPlay(filenames[cmd]);
+    //         playingIndex = cmd;
+    //     }
+    // }    
     
     audioLoop();
 
@@ -59,18 +59,20 @@ void loop(void)
     
     if (M5.BtnA.wasClicked()) {
         playingIndex = (playingIndex + file_count - 1) % file_count;
-        loraSend(playingIndex);
+        // loraSend(playingIndex);
         audioPlay(filenames[playingIndex]);
+        Serial.println(filenames[playingIndex]);
     }
 
     if (M5.BtnB.wasClicked()) {
-        loraSend(255);
+        // loraSend(255);
         audioStop();
     }
 
     if (M5.BtnC.wasClicked()) {
         playingIndex = (playingIndex + 1) % file_count;
-        loraSend(playingIndex);
+        // loraSend(playingIndex);
         audioPlay(filenames[playingIndex]);
+        Serial.println(filenames[playingIndex]);
     }
 }

@@ -30,8 +30,6 @@ void audioSetup()
     outBT = new AudioOutputA2DP();  
     outBT->SetGain(0.7);
 
-    outNULL = new AudioOutputNull();
-
     // Create array of filenames from SD card
     file_count = 0;
     File root = SD.open("/");
@@ -77,7 +75,7 @@ void audioPlay(String filepath)
 void audioLoop()
 {
     if (wav == NULL || wav->loop()) {
-        if (wav) Serial.printf("WAV Loop %d\n", outNULL->GetSamples());
+        if (wav) Serial.printf("WAV Loop %d\n", outBT->GetSamples());
         return;
     }
     Serial.println("WAV Done");

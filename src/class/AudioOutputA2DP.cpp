@@ -23,7 +23,7 @@
 #include "BluetoothA2DPSource.h"
 #include <math.h> 
 
-#define c3_frequency  130.81
+#define c3_frequency  440
 
 BluetoothA2DPSource a2dp_source;
 
@@ -55,8 +55,8 @@ AudioOutputA2DP::AudioOutputA2DP()
 //   writePtr = 0;
 //   readPtr = 0;
 //   sink = dest;
-    a2dp_source.set_auto_reconnect(true);
-    a2dp_source.start("LEXON MINO L", feedBT);  
+    a2dp_source.set_auto_reconnect(false);
+    a2dp_source.start("Energy Outdoor Bike", feedBT);  
     a2dp_source.set_volume(30);
 }
 
@@ -74,9 +74,9 @@ bool AudioOutputA2DP::begin()
 
 bool AudioOutputA2DP::ConsumeSample(int16_t sample[2])
 {
-  (void)sample; 
-  samples++;
-  Serial.printf("AudioOutputA2DP::ConsumeSample %d\n", samples);
+  // (void)sample; 
+  // samples++;
+  // Serial.printf("AudioOutputA2DP::ConsumeSample %d\n", samples);
   return true;
 }
 
