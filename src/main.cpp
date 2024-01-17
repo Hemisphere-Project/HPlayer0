@@ -26,6 +26,7 @@ void setup(void) {
     preferences.begin("HPlayer", false);
     if (preferences.getString("audioout", "") == "")
         preferences.putString("audioout", "LINE");
+        
     
     // DISPLAY init
     M5.Display.clear(TFT_BLACK);
@@ -34,9 +35,9 @@ void setup(void) {
     M5.Display.drawString("= HPlayer 0 =", 10, 20);
 
     // USB MIDI init
-    midiSetup();
     M5.Display.drawString("USB", 10, 50);
     M5.Display.drawString(": not found.." , 80, 50);
+    midiSetup();
 
     // LORA init 868MHz
     M5.Display.drawString("LoRa", 10, 70);
