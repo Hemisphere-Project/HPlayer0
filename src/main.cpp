@@ -49,10 +49,12 @@ void setup(void) {
     M5.Display.drawString(": not found.." , 80, 90);
 
     // AUDIO init
-    audioSetup( preferences.getString("audioout") );
+    // audioSetup( preferences.getString("audioout") );
+    audioSetup( "BoseMicro-1" );
     M5.Display.drawString("Audio", 10, 110);
     M5.Display.drawString(": "+audioOUTname(), 80, 110);
 
+    audioVolume(10);
 
     // Interface
     // delay(3000);

@@ -20,8 +20,9 @@
 
 #pragma once
 
-#include <Arduino.h>
 #include "AudioOutput.h"
+
+#define A2DP_BUFFER_SIZE 256
 
 class AudioOutputA2DP : public AudioOutput
 {
@@ -37,7 +38,6 @@ class AudioOutputA2DP : public AudioOutput
 
   protected:
     int samples;
-
-    
+    bool filled;
 
 };

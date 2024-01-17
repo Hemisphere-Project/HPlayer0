@@ -113,7 +113,14 @@ void audioSetup(String name)
         out = outBT;
     }
 
-    out->SetGain(0.7);
+    out->SetGain(0.8);
+}
+
+// 0->127
+void audioVolume(int v)
+{   
+    float f = v / 127.0;
+    out->SetGain(f);
 }
 
 // PLAY filename

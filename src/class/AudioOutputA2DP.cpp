@@ -23,52 +23,56 @@
 #include "BluetoothA2DPSource.h"
 #include <math.h> 
 
-#define c3_frequency  130.81
-
 BluetoothA2DPSource a2dp_source;
 
+int16_t buffer[A2DP_BUFFER_SIZE][2];
+int readPtr = 0;
+int writePtr = 0;
+
 int32_t feedBT(Frame *frame, int32_t frame_count)
-{
-    static float m_time = 0.0;
-    float m_amplitude = 10000.0;  // -32,768 to 32,767
-    float m_deltaTime = 1.0 / 44100.0;
-    float m_phase = 0.0;
-    float pi_2 = PI * 2.0;
-    // fill the channel data
-    for (int sample = 0; sample < frame_count; ++sample) {
-        float angle = pi_2 * c3_frequency * m_time + m_phase;
-        frame[sample].channel1 = m_amplitude * sin(angle);
-        frame[sample].channel2 = frame[sample].channel1;
-        m_time += m_deltaTime;
+{ 
+    int framedata = 0;
+
+    // TODO: send 0 if not playing
+
+    int diff = (A2DP_BUFFER_SIZE + writePtr - readPtr) % A2DP_BUFFER_SIZE;
+    while(diff < frame_count) {
+      // Serial.printf("Not enough data to feed BT %d/%d\n", diff, frame_count);
+      delay(1);
+      diff = (A2DP_BUFFER_SIZE + writePtr - readPtr) % A2DP_BUFFER_SIZE;
     }
-    // to prevent watchdog
-    delay(1);
+
+    for (int sample = 0; sample < frame_count; ++sample) 
+    {
+      if (readPtr != writePtr) {
+        frame[sample].channel1 = buffer[readPtr][0];
+        frame[sample].channel2 = buffer[readPtr][1];
+        readPtr = (readPtr + 1) % A2DP_BUFFER_SIZE;
+        framedata++;
+      } else {
+        Serial.println("BT Buffer underrun");
+        break;
+      }
+    }
 
     return frame_count;
 }
 
 AudioOutputA2DP::AudioOutputA2DP(const char* ssid)
 {
-//   buffSize = buffSizeSamples;
-//   leftSample = (int16_t*)malloc(sizeof(int16_t) * buffSize);
-//   rightSample = (int16_t*)malloc(sizeof(int16_t) * buffSize);
-//   writePtr = 0;
-//   readPtr = 0;
-//   sink = dest;
-    a2dp_source.set_auto_reconnect(true);
+    a2dp_source.set_auto_reconnect(false);
     a2dp_source.start(ssid, feedBT);  
-    a2dp_source.set_volume(80);
+    a2dp_source.set_volume(10);
 }
 
 AudioOutputA2DP::~AudioOutputA2DP()
 {
-//   free(leftSample);
-//   free(rightSample);
 }
 
 bool AudioOutputA2DP::begin()
 {
   samples = 0;
+  filled = false;
   return true;
 }
 
@@ -80,11 +84,23 @@ bool AudioOutputA2DP::SetGain(float f)
 }
 
 bool AudioOutputA2DP::ConsumeSample(int16_t sample[2])
-{
-  (void)sample; 
+{ 
+
+
+  // Now, do we have space for a new sample?
+  int nextWritePtr = (writePtr + 1) % A2DP_BUFFER_SIZE;
+  if (nextWritePtr == readPtr) {
+    filled = true;
+    return false;
+  }
+
+  buffer[writePtr][0] = sample[0];
+  buffer[writePtr][1] = sample[1];
+  MakeSampleStereo16( buffer[writePtr] );
+  writePtr = nextWritePtr;
   samples++;
-  Serial.printf("AudioOutputA2DP::ConsumeSample %d\n", samples);
   return true;
+
 }
 
 

@@ -2,6 +2,8 @@
 #include <usbh_midi.h>
 #include <usbhub.h>
 
+// TODO: FIX avrpins for modified shield
+
 USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
