@@ -1,0 +1,46 @@
+TODO
+====
+
+- SD hot swap (doesnt seems to play..)
+
+- TEST BT
+
+- Bose Soundlink
+
+- Replace LoRa with nRF24 // ESP-NOW
+
+
+
+
+STATUS PAGE
+===========
+
+- SD:   ok (x files)   / not found
+- Link: ok (x peers)   / not found
+- MIDI: ok / no device / not found 
+
+- PLAYING: 03_super.mp3 (x:xx / x:xx)
+
+- MEDIA SELECT: 03_super.mp3
+
+A: short= prev  long= menu page
+B: short= play  long= stop
+C: short= next  
+
+
+
+MENU PAGE
+=========
+
++ Audio Out
+    ++ Internal
+    ++ Last saved BT
+    ++ Detected BT1
+    ++ Detected BT2
+    ++ ... (list available BT devices)
+
++ OTA Update (connect to hmsphr)
+    -> page with progress bar
+
+
+
