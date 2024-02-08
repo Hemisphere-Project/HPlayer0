@@ -36,6 +36,8 @@ class AudioOutputA2DP : public AudioOutput
 
     int GetSamples() { return samples; }
 
+    bool isConnected();
+
   protected:
     int samples;
     bool filled;

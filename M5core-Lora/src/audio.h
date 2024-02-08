@@ -113,7 +113,7 @@ void audioSetup(String name)
         out = outBT;
     }
 
-    out->SetGain(0.8);
+    out->SetGain(1.0);
 }
 
 // 0->127
