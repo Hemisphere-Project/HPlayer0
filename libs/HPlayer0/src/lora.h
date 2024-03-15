@@ -18,7 +18,7 @@ bool loraSetup()
         loraOk = false;
         return false;
     } 
-    LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);
+    LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);            // 10 - 125 - 8
     LoRa.setSpreadingFactor(10);        // 6: faster - 12: stronger
     LoRa.setSignalBandwidth(125E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
     LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
@@ -35,8 +35,15 @@ bool loraLoop()
     if (packetSize == 0)
         return false;  // if there's no packet, return.  如果没有包，返回。
 
+    Serial.println("Lora IN: size="+String(packetSize));
+    if (packetSize == 2) {
+        // read dest bytes:
+        byte dest         = LoRa.read(); // first byte is the dest. 
+        // TODO: not for me: return;
+    }
+
     // read packet header bytes:
-    byte cmd         = LoRa.read(); // first byte is the command.  第一个字节是命令。
+    byte cmd         = LoRa.read(); // second byte is the command.
 
     // loraStack incoming message
     loraStack[loraStackHead] = cmd;

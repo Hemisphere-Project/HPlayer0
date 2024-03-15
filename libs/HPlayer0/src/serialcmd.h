@@ -33,6 +33,7 @@ void serialcmdSend(byte cmd)
 {
     if (!serialcmdOk) return;
     Serial1.write(cmd);
+    Serial.println("Serial1.write");
 }
 
 bool serialcmdStackIsEmpty() 

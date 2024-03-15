@@ -33,7 +33,14 @@ String current_name = "";
 void sdInit()
 {
     if (sdOK) return;
+
+#if M5CORE
     sdOK = SD.begin(4);
+#elif M5ATOM
+    SPI.begin(23, 33, 19, 22);
+    sdOK = SD.begin(22, SPI);
+#endif
+
     if (!sdOK) return;
 
     // Create array of filenames from SD card

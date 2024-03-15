@@ -29,7 +29,7 @@ int16_t buffer[A2DP_BUFFER_SIZE][2];
 int readPtr = 0;
 int writePtr = 0;
 
-const char* SSID;
+String SSID;
 
 int32_t feedBT(Frame *frame, int32_t frame_count)
 { 
@@ -83,17 +83,18 @@ AudioOutputA2DP::AudioOutputA2DP(const char* ssid)
     char name[32];
     sprintf(name, "%splayer", ssid);
     SSID = ssid;
+    Serial.printf("BT- Target SSID: %s\n", SSID.c_str());
 
     a2dp_source.set_local_name(name);
-    a2dp_source.set_ssid_callback([](const char*_ssid, esp_bd_addr_t _address, int _rrsi) {
-      Serial.printf("BT- Found %s RSSI %d Addr: %02x:%02x:%02x:%02x:%02x:%02x\n", _ssid, _rrsi, _address[0], _address[1], _address[2], _address[3], _address[4], _address[5]);
-      Serial.printf("BT- Target SSID: %s\n", SSID);
-      return (_ssid == SSID);
-    });
+    a2dp_source.set_ssid_callback(
+      [](const char*_ssid, esp_bd_addr_t _address, int _rrsi) {
+        Serial.printf("BT- Found: %s - RSSI %d - Addr: %02x:%02x:%02x:%02x:%02x:%02x - ", _ssid, _rrsi, _address[0], _address[1], _address[2], _address[3], _address[4], _address[5]);
+        if (String(_ssid) == SSID) Serial.println("match!");
+        else Serial.println("no match..");
+        return (String(_ssid) == SSID);
+      }
+    );
 
-
-    a2dp_source.set_discoverability(ESP_BT_NON_DISCOVERABLE);
-    
     a2dp_source.set_on_connection_state_changed([](esp_a2d_connection_state_t state, void* obj) {
       if (state == ESP_A2D_CONNECTION_STATE_CONNECTED) {
         Serial.println("BT- Connected");
@@ -131,7 +132,7 @@ AudioOutputA2DP::AudioOutputA2DP(const char* ssid)
     // a2dp_source.connect_to(address);
 
     a2dp_source.start(ssid, feedBT);  
-    a2dp_source.set_volume(100);
+    a2dp_source.set_volume(255);
 }
 
 AudioOutputA2DP::~AudioOutputA2DP()

@@ -13,7 +13,7 @@ bool midiOk = false;
 
 // Fifo midiStack using circular buffer
 #define MIDI_STACK_SIZE 10
-byte midiStack[MIDI_STACK_SIZE];
+byte midiStack[MIDI_STACK_SIZE][2];
 int midiStackHead = 0;
 int midiStackTail = 0;
 
@@ -47,11 +47,14 @@ void MIDI_poll()
     // }
 
     byte cmd = 0;
+    byte dest = 0;
 
     // TYPE
     if (bufMidi[0] == 0x09) {
       // Note On
       Serial.print(" Note On");
+
+      // MEDIA 1->8
       if (bufMidi[2] == 40) cmd = 1;
       if (bufMidi[2] == 41) cmd = 2;
       if (bufMidi[2] == 42) cmd = 3;
@@ -66,6 +69,8 @@ void MIDI_poll()
     } else if (bufMidi[0] == 0x0B) {
       // Control Change
       Serial.print(" Control Change");
+      
+      // MEDIA 9->16
       if (bufMidi[2] == 16 && bufMidi[3] > 0) cmd = 9;
       if (bufMidi[2] == 17 && bufMidi[3] > 0) cmd = 10;
       if (bufMidi[2] == 18 && bufMidi[3] > 0) cmd = 11;
@@ -74,6 +79,13 @@ void MIDI_poll()
       if (bufMidi[2] == 13 && bufMidi[3] > 0) cmd = 14;
       if (bufMidi[2] == 14 && bufMidi[3] > 0) cmd = 15;
       if (bufMidi[2] == 15 && bufMidi[3] > 0) cmd = 16;
+
+      // VOLUMES
+      if (bufMidi[2] >= 70 && bufMidi[2] <= 77) {
+        cmd = 100+bufMidi[3];
+        dest = bufMidi[2]-69;
+      }
+
     } else if (bufMidi[0] == 0x0E) {
       // Pitch Bend
       Serial.print(" Pitch Bend");
@@ -95,7 +107,8 @@ void MIDI_poll()
 
     // midiStack incoming message
     if (cmd > 0) {
-      midiStack[midiStackHead] = cmd;
+      midiStack[midiStackHead][0] = dest;
+      midiStack[midiStackHead][1] = cmd;
       midiStackHead = (midiStackHead + 1) % MIDI_STACK_SIZE;
     }
 
@@ -145,15 +158,19 @@ bool midiOK()
   return midiOk;
 }
 
+bool usbOK()
+{
+  return usbOk;
+}
 
 bool midiStackIsEmpty() 
 {   
     return midiStackHead == midiStackTail;
 }
 
-byte midiStackPop() 
+byte* midiStackPop() 
 {
-    byte outgoing = midiStack[midiStackTail];
+    byte* outgoing = midiStack[midiStackTail];
     midiStackTail = (midiStackTail + 1) % MIDI_STACK_SIZE;
     return outgoing;
 }
