@@ -18,12 +18,12 @@ Preferences preferences;
 
 // Default values
 byte destID     = 255;
-String audioOUT = "LINE";
+String audioOUT = "SPEAKER";
 int useMIDI     = 0;
 
 // Uncomment to burn to flash !!
-// #define DEST_ID     8            // DEST_ID: 0=regie 255=all
-// #define AUDIO_OUT   "BM8"        // LINE or SPEAKER or BTssid
+// #define DEST_ID     3            // DEST_ID: 0=regie 255=all
+// #define AUDIO_OUT   "LINE"        // LINE or SPEAKER or BTssid
 // #define USBMIDI     0            // 0: off, 1: on
 
 /////////////////////////////////////////////////////
