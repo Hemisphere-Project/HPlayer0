@@ -2,7 +2,12 @@
 #include "USB_Host_Shield_2.0/usbh_midi.h"
 #include "USB_Host_Shield_2.0/usbhub.h"
 
-// TODO: FIX avrpins for modified shield
+// WARNING: FIX avrpins for modified shield
+// USB_Host_Shield_2.0 / avrpins.h (line ~1697)
+//
+// Pinout for ESP32 dev module 
+// //MAKE_PIN(P22, 22); // SCL // <-- COMMENTED OUT
+// MAKE_PIN(P5, 22); // SS  // <-- MODIFIED
 
 USB Usb;
 USBHub Hub(&Usb);
@@ -11,11 +16,8 @@ USBH_MIDI  Midi(&Usb);
 bool usbOk = false;
 bool midiOk = false;
 
-// Fifo midiStack using circular buffer
-#define MIDI_STACK_SIZE 10
-byte midiStack[MIDI_STACK_SIZE][2];
-int midiStackHead = 0;
-int midiStackTail = 0;
+// callback
+void (*midiRcv)(byte dest, byte cmd) = NULL;
 
 void MIDI_init()
 {
@@ -25,7 +27,7 @@ void MIDI_init()
   sprintf(buf, "VID:%d, PID:%d", vid, pid);
   Serial.println(buf); 
 
-  midiOk = (vid == 2536 && pid == 76);
+  midiOk = (vid == 2536 && pid == 76);  // AKAI LPD8
 }
 
 
@@ -36,18 +38,10 @@ void MIDI_poll()
   uint8_t bufMidi[MIDI_EVENT_PACKET_SIZE];
   uint16_t  rcvd;
 
-  if (Midi.RecvData( &rcvd,  bufMidi) == 0 ) {
-    // uint32_t time = (uint32_t)millis();
-    // sprintf(buf, "%04X%04X:%3d:", (uint16_t)(time >> 16), (uint16_t)(time & 0xFFFF), rcvd); // Split variable to prevent warnings on the ESP8266 platform
-    // Serial.print(buf);
-
-    // for (int i = 0; i < MIDI_EVENT_PACKET_SIZE; i++) {
-    //   sprintf(buf, " %02X", bufMidi[i]);
-    //   Serial.print(buf);
-    // }
-
+  while (Midi.RecvData( &rcvd,  bufMidi) == 0 ) 
+  {
     byte cmd = 0;
-    byte dest = 0;
+    byte dest = 255;
 
     // TYPE
     if (bufMidi[0] == 0x09) {
@@ -62,7 +56,8 @@ void MIDI_poll()
       if (bufMidi[2] == 36) cmd = 5;
       if (bufMidi[2] == 37) cmd = 6;
       if (bufMidi[2] == 38) cmd = 7;
-      if (bufMidi[2] == 39) cmd = 8;
+      if (bufMidi[2] == 39) cmd = 255; // stop
+
     } else if (bufMidi[0] == 0x08) {
       // Note Off
       Serial.print(" Note Off");
@@ -78,7 +73,7 @@ void MIDI_poll()
       if (bufMidi[2] == 12 && bufMidi[3] > 0) cmd = 13;
       if (bufMidi[2] == 13 && bufMidi[3] > 0) cmd = 14;
       if (bufMidi[2] == 14 && bufMidi[3] > 0) cmd = 15;
-      if (bufMidi[2] == 15 && bufMidi[3] > 0) cmd = 16;
+      if (bufMidi[2] == 15 && bufMidi[3] > 0) cmd = 255; // stop
 
       // VOLUMES
       if (bufMidi[2] >= 70 && bufMidi[2] <= 77) {
@@ -95,6 +90,17 @@ void MIDI_poll()
     } else if (bufMidi[0] == 0x0C) {
       // Program Change
       Serial.print(" Program Change");
+
+      // MEDIA 17->24
+      if (bufMidi[2] == 4 && bufMidi[3] > 0) cmd = 17;
+      if (bufMidi[2] == 5 && bufMidi[3] > 0) cmd = 18;
+      if (bufMidi[2] == 6 && bufMidi[3] > 0) cmd = 19;
+      if (bufMidi[2] == 7 && bufMidi[3] > 0) cmd = 20;
+      if (bufMidi[2] == 0 && bufMidi[3] > 0) cmd = 21;
+      if (bufMidi[2] == 1 && bufMidi[3] > 0) cmd = 22;
+      if (bufMidi[2] == 2 && bufMidi[3] > 0) cmd = 23;
+      if (bufMidi[2] == 3 && bufMidi[3] > 0) cmd = 255; // stop
+
     } else if (bufMidi[0] == 0x0D) {
       // Channel Aftertouch
       Serial.print(" Channel Aftertouch");
@@ -105,12 +111,8 @@ void MIDI_poll()
       Serial.print(" Unknown");
     }
 
-    // midiStack incoming message
-    if (cmd > 0) {
-      midiStack[midiStackHead][0] = dest;
-      midiStack[midiStackHead][1] = cmd;
-      midiStackHead = (midiStackHead + 1) % MIDI_STACK_SIZE;
-    }
+    // process msgs
+    if (cmd > 0 && midiRcv != NULL) midiRcv(dest, cmd);
 
     // CHANNEL
     Serial.print(" Channel:");
@@ -122,14 +124,16 @@ void MIDI_poll()
     Serial.print(" ");
     Serial.print(bufMidi[3]);
 
-
-
     Serial.println("");
   }
 }
 
-bool midiSetup()
-{
+bool midiSetup( void (*f)(byte dest, byte cmd) )
+{ 
+  // callback
+  midiRcv = f;
+
+  #if M5CORE
   if (Usb.Init() == -1) {
     usbOk = false;
     Serial.println("USB init failed");
@@ -141,16 +145,11 @@ bool midiSetup()
   usbOk = true;
   Serial.println("USB init ok");
   return true;
-}
+  #endif
 
-void midiLoop()
-{
-  if (!usbOk) return;
-
-  Usb.Task();
-  if ( Midi ) {
-    MIDI_poll();
-  }
+  // not suppoted
+  usbOk = false;
+  return false;
 }
 
 bool midiOK()
@@ -163,14 +162,12 @@ bool usbOK()
   return usbOk;
 }
 
-bool midiStackIsEmpty() 
-{   
-    return midiStackHead == midiStackTail;
-}
-
-byte* midiStackPop() 
+void midiLoop()
 {
-    byte* outgoing = midiStack[midiStackTail];
-    midiStackTail = (midiStackTail + 1) % MIDI_STACK_SIZE;
-    return outgoing;
+  if (!usbOk) return;
+
+  Usb.Task();
+  if ( Midi ) {
+    MIDI_poll();
+  }
 }

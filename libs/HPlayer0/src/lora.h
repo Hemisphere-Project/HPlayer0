@@ -2,16 +2,17 @@
 #include <M5Unified.h>
 #include "M5LoRa/M5LoRa.h"
 
-// Fifo loraStack using circular buffer
-#define LORA_STACK_SIZE 10
-byte loraStack[LORA_STACK_SIZE];
-int loraStackHead = 0;
-int loraStackTail = 0;
-
 bool loraOk = false;
 
-bool loraSetup()
+// callaback
+void (*loraRecv) (byte dest, byte cmd) = NULL;
+
+bool loraSetup( void (*f)(byte dest, byte cmd) = NULL ) 
 {
+    // callback
+    loraRecv = f;
+
+    #if M5CORE
     // LORA init 868MHz
     LoRa.setPins(); 
     if (!LoRa.begin(868E6)) {
@@ -24,6 +25,11 @@ bool loraSetup()
     LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
     loraOk = true;
     return true;
+    #endif
+
+    // not supported
+    loraOk = false;
+    return false;
 }
 
 
@@ -32,46 +38,29 @@ bool loraLoop()
     if (!loraOk) return false;
 
     int packetSize = LoRa.parsePacket();
-    if (packetSize == 0)
-        return false;  // if there's no packet, return.  如果没有包，返回。
+    if (packetSize == 0) return false;  // no packet
 
     Serial.println("Lora IN: size="+String(packetSize));
-    if (packetSize == 2) {
-        // read dest bytes:
-        byte dest         = LoRa.read(); // first byte is the dest. 
-        // TODO: not for me: return;
-    }
+    byte dest = (packetSize == 2) ? LoRa.read() : 255;  // first byte is the destination.
+    byte cmd  = LoRa.read();                            // second byte is the command.
 
-    // read packet header bytes:
-    byte cmd         = LoRa.read(); // second byte is the command.
-
-    // loraStack incoming message
-    loraStack[loraStackHead] = cmd;
-    loraStackHead = (loraStackHead + 1) % LORA_STACK_SIZE;
+    // callaback
+    if (loraRecv != NULL) loraRecv(dest, cmd);
 
     return true;
 }
 
-void loraSend(byte cmd) 
+bool loraSend(byte dest, byte cmd) 
 {
-    if (!loraOk) return;
+    if (!loraOk) return false;
 
-    LoRa.beginPacket();        // start packet.  开始包
-    LoRa.print(cmd, 0);           // add payload.  添加有效载荷
-    LoRa.endPacket();  // finish packet and send it.  完成数据包并发送
-
-    M5.Display.drawString( "Lora OUT: "+String(cmd)+"    ", 10, 190);
+    LoRa.beginPacket();         // start packet.  
+    if (dest != 255) 
+        LoRa.print(dest, 0);    // add destination.  
+    LoRa.print(cmd, 0);         // add payload.  
+    LoRa.endPacket();           // finish packet and send it. 
+    
+    return true;
 }
 
-bool loraStackIsEmpty() 
-{   
-    return loraStackHead == loraStackTail;
-}
-
-byte loraStackPop() 
-{
-    byte outgoing = loraStack[loraStackTail];
-    loraStackTail = (loraStackTail + 1) % LORA_STACK_SIZE;
-    return outgoing;
-}
 

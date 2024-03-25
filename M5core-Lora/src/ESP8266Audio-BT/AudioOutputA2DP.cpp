@@ -31,6 +31,8 @@ int writePtr = 0;
 
 String SSID;
 
+esp_bd_addr_t address = {0xc8, 0x7b, 0x23, 0xad, 0x97, 0x78}; // BM8
+
 int32_t feedBT(Frame *frame, int32_t frame_count)
 { 
 
@@ -97,7 +99,7 @@ AudioOutputA2DP::AudioOutputA2DP(const char* ssid)
 
     a2dp_source.set_on_connection_state_changed([](esp_a2d_connection_state_t state, void* obj) {
       if (state == ESP_A2D_CONNECTION_STATE_CONNECTED) {
-        Serial.println("BT- Connected");
+        Serial.print("BT- Connected");
       } else if (state == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
         Serial.println("BT- Disconnected");
       } else if (state == ESP_A2D_CONNECTION_STATE_CONNECTING) {
@@ -109,29 +111,10 @@ AudioOutputA2DP::AudioOutputA2DP(const char* ssid)
       }
     });
 
-    // BM2 = c8:7b:23:ac:9f:d1
 
-    // if (ssid == "BM1") {
-    //     esp_bd_addr_t address = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    //     a2dp_source.set_auto_reconnect( false );
-    //     a2dp_source.connect_to(address);
-    // }
-    // else if (ssid == "BM2") {
-    //     esp_bd_addr_t address = {0xc8, 0x7b, 0x23, 0xac, 0x9f, 0xd1};
-    //     a2dp_source.set_auto_reconnect( false );
-    //     a2dp_source.connect_to(address);
-    // }
-    // else {
-    //     esp_bd_addr_t address = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    //     a2dp_source.set_auto_reconnect( false );
-    //     a2dp_source.connect_to(address);
-    // } 
 
-    // esp_bd_addr_t address = {0xc8, 0x7b, 0x23, 0xac, 0x9f, 0xd1};
-    // a2dp_source.set_auto_reconnect( false );
-    // a2dp_source.connect_to(address);
-
-    a2dp_source.start(ssid, feedBT);  
+    a2dp_source.set_auto_reconnect(true);
+    a2dp_source.start(ssid, feedBT);
     a2dp_source.set_volume(255);
 }
 

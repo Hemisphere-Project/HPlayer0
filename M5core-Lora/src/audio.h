@@ -214,3 +214,7 @@ byte audioPrevKey() {
 bool audioIsBT() {
     return audioOutName != "LINE" && audioOutName != "SPEAKER";
 }
+
+bool audioLINKok() {
+    return !audioIsBT() || outBT->isConnected();
+}
