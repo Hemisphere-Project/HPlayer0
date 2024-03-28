@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <M5Unified.h>
-#include "M5LoRa/M5LoRa.h"
+#include "M5LoRa.h"
 
 bool loraOk = false;
 

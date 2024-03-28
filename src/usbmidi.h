@@ -1,6 +1,6 @@
 
-#include "USB_Host_Shield_2.0/usbh_midi.h"
-#include "USB_Host_Shield_2.0/usbhub.h"
+#include "usbh_midi.h"
+#include "usbhub.h"
 
 // WARNING: FIX avrpins for modified shield
 // USB_Host_Shield_2.0 / avrpins.h (line ~1697)

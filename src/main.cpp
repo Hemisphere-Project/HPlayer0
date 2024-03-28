@@ -234,35 +234,43 @@ void loop(void)
     M5.update();
 
 
-// #if M5CORE
-//     if (M5.BtnA.wasClicked()) {
-//         byte i = audioPrevKey();
-//         M5.Display.drawString( "PREV: "+String(i)+"         ", 10, 170);
-//         // sendCmd(i);
-//         serialcmdSend(255, i);
-//         audioPlayKey(i);
-//     }
+#if M5CORE
+    if (M5.BtnA.wasClicked()) {
+        byte i = audioPrevKey();
+        M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        M5.Display.drawString( "PREV: "+String(i)+"         ", 10, 170);
+        // sendCmd(i);
+        serialcmdSend(255, i);
+        audioPlayKey(i);
+    }
 
-//     if (M5.BtnB.wasClicked()) {
-//         M5.Display.drawString( "STOP                  ", 10, 170);
-//         // sendCmd(255);
-//         serialcmdSend(255, 255);
-//         audioStop();
-//     }
+    if (M5.BtnB.wasClicked()) {
+        M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        M5.Display.drawString( "STOP                  ", 10, 170);
+        // sendCmd(255);
+        serialcmdSend(255, 255);
+        audioStop();
+    }
 
-//     if (M5.BtnC.wasClicked()) {
-//         byte i = audioNextKey();
-//         M5.Display.drawString( "NEXT: "+String(i)+"         ", 10, 170);
-//         // sendCmd(i);
-//         serialcmdSend(255, i);
-//         audioPlayKey(i);
-//     }
-// #elif M5ATOM
-//     if (M5.BtnA.wasPressed()) {
-//         byte i = audioNextKey();
-//         sendCmd(255, i);
-//         audioPlayKey(i);
-//     }
-// #endif
+    if (M5.BtnC.wasClicked()) {
+        byte i = audioNextKey();
+        M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        M5.Display.drawString( "NEXT: "+String(i)+"         ", 10, 170);
+        // sendCmd(i);
+        serialcmdSend(255, i);
+        audioPlayKey(i);
+    }
+#elif M5ATOM
+    if (M5.BtnA.wasHold()) {
+        byte i = audioPrevKey();
+        serialcmdSend(255, 255);
+        audioStop();
+    }
+    else if (M5.BtnA.wasClicked()) {
+        byte i = audioNextKey();
+        serialcmdSend(255, i);
+        audioPlayKey(i);
+    }
+#endif
 
 }
