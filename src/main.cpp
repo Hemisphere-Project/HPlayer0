@@ -1,3 +1,21 @@
+/*
+    HPlayer0 - HPlayer0 is a modular media player designed for ESP32.
+    Copyright (C) 2024 Thomas BOHL - thomas@37m.gr
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #include <Arduino.h>
 
 #include <M5Unified.h>
@@ -126,23 +144,32 @@ void setup(void) {
     M5.begin();
     M5.Power.begin();
 
-    // Preferences init
-    preferences.begin("HPlayer0", false);
-
     #ifdef AUDIO_OUT
-        if (preferences.getString("audioout", audioOUT) != AUDIO_OUT)
+        if (preferences.getString("audioout", audioOUT) != AUDIO_OUT) {
+            preferences.begin("HPlayer0", false);
             preferences.putString("audioout", AUDIO_OUT);
+            preferences.end();
+        }
     #endif
 
     #ifdef USBMIDI
-        if (preferences.getInt("usbmidi", useMIDI) != USBMIDI)
+        if (preferences.getInt("usbmidi", useMIDI) != USBMIDI) {
+            preferences.begin("HPlayer0", false);
             preferences.putInt("usbmidi", USBMIDI);
+            preferences.end();
+        }
     #endif
 
     #ifdef DEST_ID
-        if (preferences.getInt("destid", destID) != DEST_ID)
+        if (preferences.getInt("destid", destID) != DEST_ID) {
+            preferences.begin("HPlayer0", false);
             preferences.putInt("destid", DEST_ID);
+            preferences.end();
+        }
     #endif
+
+    // Preferences init ( Read-only )
+    preferences.begin("HPlayer0", true);
 
     destID      = preferences.getInt("destid",      destID);
     useMIDI     = preferences.getInt("usbmidi",     useMIDI); 
