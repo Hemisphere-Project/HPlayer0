@@ -39,7 +39,7 @@ bool loraSetup( void (*f)(byte dest, byte cmd) = NULL )
     } 
     LoRa.setTxPower(17, PA_OUTPUT_PA_BOOST_PIN);            // 10 - 125 - 8
     LoRa.setSpreadingFactor(10);        // 6: faster - 12: stronger
-    LoRa.setSignalBandwidth(125E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
+    LoRa.setSignalBandwidth(62.5E3);     // 7.8E3  10.4E3  15.6E3  20.8E3  31.25E3  41.7E3  62.5E3  125E3  250E3  500E3  bps
     LoRa.setCodingRate4(8);             // 5: faster - 8: stronger
     loraOk = true;
     return true;

@@ -98,6 +98,7 @@ AudioOutputA2DP::AudioOutputA2DP(const char* ssid)
     a2dp_source.set_on_connection_state_changed([](esp_a2d_connection_state_t state, void* obj) {
       if (state == ESP_A2D_CONNECTION_STATE_CONNECTED) {
         Serial.print("BT- Connected");
+        a2dp_source.set_volume(255);
       } else if (state == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
         Serial.println("BT- Disconnected");
       } else if (state == ESP_A2D_CONNECTION_STATE_CONNECTING) {
@@ -112,6 +113,7 @@ AudioOutputA2DP::AudioOutputA2DP(const char* ssid)
 
 
     a2dp_source.set_auto_reconnect(true);
+    // a2dp_source.set_auto_reconnect(false);
     a2dp_source.start(ssid, feedBT);
     a2dp_source.set_volume(255);
 }
@@ -130,7 +132,7 @@ bool AudioOutputA2DP::begin()
 bool AudioOutputA2DP::SetGain(float f)
 {
   if (f>1.0) f = 1.0;
-  a2dp_source.set_volume(f*100);
+  a2dp_source.set_volume(f*255);
   return true;
 }
 

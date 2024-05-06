@@ -40,8 +40,8 @@ String audioOUT = "SPEAKER";
 int useMIDI     = 0;
 
 // Uncomment to burn to flash !!
-// #define DEST_ID     3            // DEST_ID: 0=regie 255=all
-// #define AUDIO_OUT   "LINE"        // LINE or SPEAKER or BTssid
+// #define DEST_ID     8            // DEST_ID: 0=regie 255=all
+// #define AUDIO_OUT   "BM8"        // LINE or SPEAKER or BTssid
 // #define USBMIDI     0            // 0: off, 1: on
 
 /////////////////////////////////////////////////////
@@ -262,42 +262,42 @@ void loop(void)
 
 
 #if M5CORE
-    if (M5.BtnA.wasClicked()) {
-        byte i = audioPrevKey();
-        M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        M5.Display.drawString( "PREV: "+String(i)+"         ", 10, 170);
-        // sendCmd(i);
-        serialcmdSend(255, i);
-        audioPlayKey(i);
-    }
+    // if (M5.BtnA.wasClicked()) {
+    //     byte i = audioPrevKey();
+    //     M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
+    //     M5.Display.drawString( "PREV: "+String(i)+"         ", 10, 170);
+    //     // sendCmd(i);
+    //     serialcmdSend(255, i);
+    //     audioPlayKey(i);
+    // }
 
-    if (M5.BtnB.wasClicked()) {
-        M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        M5.Display.drawString( "STOP                  ", 10, 170);
-        // sendCmd(255);
-        serialcmdSend(255, 255);
-        audioStop();
-    }
+    // if (M5.BtnB.wasClicked()) {
+    //     M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
+    //     M5.Display.drawString( "STOP                  ", 10, 170);
+    //     // sendCmd(255);
+    //     serialcmdSend(255, 255);
+    //     audioStop();
+    // }
 
-    if (M5.BtnC.wasClicked()) {
-        byte i = audioNextKey();
-        M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        M5.Display.drawString( "NEXT: "+String(i)+"         ", 10, 170);
-        // sendCmd(i);
-        serialcmdSend(255, i);
-        audioPlayKey(i);
-    }
+    // if (M5.BtnC.wasClicked()) {
+    //     byte i = audioNextKey();
+    //     M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
+    //     M5.Display.drawString( "NEXT: "+String(i)+"         ", 10, 170);
+    //     // sendCmd(i);
+    //     serialcmdSend(255, i);
+    //     audioPlayKey(i);
+    // }
 #elif M5ATOM
-    if (M5.BtnA.wasHold()) {
-        byte i = audioPrevKey();
-        serialcmdSend(255, 255);
-        audioStop();
-    }
-    else if (M5.BtnA.wasClicked()) {
-        byte i = audioNextKey();
-        serialcmdSend(255, i);
-        audioPlayKey(i);
-    }
+    // if (M5.BtnA.wasHold()) {
+    //     byte i = audioPrevKey();
+    //     serialcmdSend(255, 255);
+    //     audioStop();
+    // }
+    // else if (M5.BtnA.wasClicked()) {
+    //     byte i = audioNextKey();
+    //     serialcmdSend(255, i);
+    //     audioPlayKey(i);
+    // }
 #endif
 
 }
