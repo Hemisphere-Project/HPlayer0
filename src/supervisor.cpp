@@ -101,12 +101,18 @@ void tick(bool menuOpen) {
       case PlayerState::Failed:   leds(0xFF0040); break;
     }
 
-  // --- scheduled reboot, only between two tracks ----------------------------------------
-  bool boundary = player::atTrackBoundary();
-  if (g_s->rebootEveryH && boundary && now > (uint32_t)g_s->rebootEveryH * 3600000UL) {
-    log_w("scheduled reboot after %luh uptime", (unsigned long)(now / 3600000UL));
+  // --- scheduled reboot: armed after N hours, taken at the END of the playlist -----------
+  // The pump stops instead of re-opening track 1, so the order is respected: the last
+  // media finishes, the box reboots, the boot path starts the first media.
+  uint32_t rebootAfterMs = (uint32_t)g_s->rebootEveryH * 3600000UL;
+#ifdef HP_TEST_REBOOT_MS
+  rebootAfterMs = HP_TEST_REBOOT_MS;   // bench flavour only: PLATFORMIO_BUILD_FLAGS=-DHP_TEST_REBOOT_MS=600000
+#endif
+  if (rebootAfterMs && now > rebootAfterMs) player::requestRebootAtWrap();
+  if (player::rebootPending()) {
+    log_w("playlist ended, scheduled reboot after %luh uptime", (unsigned long)(now / 3600000UL));
     settings::flushNow(*g_s);
-    delay(100);
+    delay(200);
     ESP.restart();
   }
 

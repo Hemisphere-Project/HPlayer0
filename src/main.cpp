@@ -34,6 +34,7 @@ namespace {
 Settings g_settings;
 uint32_t g_lastRender = 0, g_lastGen = 0, g_lastPos = 0, g_lastRepeat = 0;
 bool g_lastMenu = false;
+bool g_swallowTap = false;
 
 const char* resetReason() {
   switch (esp_reset_reason()) {
@@ -44,6 +45,8 @@ const char* resetReason() {
     case ESP_RST_TASK_WDT: return "TASK-WDT";
     case ESP_RST_WDT:      return "WDT";
     case ESP_RST_BROWNOUT: return "BROWNOUT";
+    case ESP_RST_USB:      return "usb";
+    case ESP_RST_JTAG:     return "jtag";
     default:               return "other";
   }
 }
@@ -68,13 +71,29 @@ bool stepPressed(m5::Button_Class& b, uint32_t now) {
 }
 
 void handleInput(uint32_t now) {
-  bool pressed = M5.BtnA.wasPressed() || M5.BtnB.wasPressed() || M5.BtnC.wasPressed();
+  auto& t = M5.Touch.getDetail();
+  bool touchOnScreen = t.wasPressed() && t.y < 240;   // the strip below the LCD is BtnA/B/C
+  bool pressed = M5.BtnA.wasPressed() || M5.BtnB.wasPressed() || M5.BtnC.wasPressed() || touchOnScreen;
   if (pressed && supervisor::noteInput()) {
     // the press only woke the backlight — swallow it (release events too)
     M5.BtnA.setRawState(now, false);
     M5.BtnB.setRawState(now, false);
     M5.BtnC.setRawState(now, false);
+    g_swallowTap = true;
     return;
+  }
+  if (t.wasClicked() && t.y < 240) {
+    if (g_swallowTap) g_swallowTap = false;
+    else if (menu::isOpen()) {
+      int i = ui::menuItemAtY(t.y);
+      if (i >= 0) {
+        if ((size_t)i == menu::selected()) menu::activate();
+        else menu::select(i);
+      }
+    } else {
+      int idx = ui::trackAtY(t.y, player::snapshot(), library::count());
+      if (idx >= 0) player::play(idx);
+    }
   }
   if (menu::isOpen()) {
     if (M5.BtnB.wasHold()) menu::close();
@@ -138,12 +157,13 @@ void loop() {
     PlayerSnapshot s = player::snapshot();
     bool menuOpen = menu::isOpen();
     bool changed = s.generation != g_lastGen || s.posSec != g_lastPos || menuOpen != g_lastMenu ||
-                   menuOpen /* live values */ || now - g_lastRender >= 1000;
+                   menuOpen /* live values */ || ui::animating() || now - g_lastRender >= 1000;
     if (changed) {
       UiStatus st;
       st.sdMounted = library::mounted();
       st.trackCount = library::count();
       st.syncState = syncgrp::stateName();
+      st.syncLinked = syncgrp::linked();
       st.menuOpen = menuOpen;
       ui::render(s, st);
       g_lastGen = s.generation;

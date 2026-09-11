@@ -88,6 +88,8 @@ bool isOpen() { return g_open; }
 void onLeft() { adjust(-1); }
 void onRight() { adjust(+1); }
 void onCenter() { g_sel = (g_sel + 1) % COUNT; }
+void select(size_t i) { if (i < COUNT) g_sel = i; }
+void activate() { adjust(+1); }
 size_t count() { return COUNT; }
 size_t selected() { return g_sel; }
 

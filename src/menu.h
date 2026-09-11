@@ -13,6 +13,8 @@ bool isOpen();
 void onLeft();
 void onRight();
 void onCenter();
+void select(size_t i);   // touch: highlight an entry
+void activate();         // touch on the highlighted entry = act / step its value
 size_t count();
 size_t selected();
 void label(size_t i, char* out, size_t n);

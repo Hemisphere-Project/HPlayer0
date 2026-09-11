@@ -29,7 +29,8 @@ std::atomic<bool> g_evtOpenFail{false};
 std::atomic<bool> g_evtOpened{false};
 std::atomic<int> g_pumpTrack{-1};        // what the pump is on (authoritative)
 std::atomic<int> g_pumpTried{-1};        // last track the pump attempted to open
-std::atomic<uint32_t> g_boundaries{0};   // count of track ends
+std::atomic<bool> g_rebootAtWrap{false};  // supervisor asks: stop at the end of the playlist
+std::atomic<bool> g_rebootPending{false}; // pump answers: playlist ended, nothing playing
 
 // UI-task state
 PlayerState g_state = PlayerState::NoSd;
@@ -39,7 +40,6 @@ uint32_t g_gen = 1;
 uint32_t g_lastPos = 0, g_lastProgressMs = 0, g_stallRestarts = 0;
 uint32_t g_failed = 0;         // consecutive open failures
 uint32_t g_sweepAt = 0;
-uint32_t g_lastBoundarySeen = 0;
 char g_codec[8] = "";
 
 void onAudioEvent(Audio::msg_t m) {   // pump-task context
@@ -101,10 +101,17 @@ void pumpLoop(void*) {
     // Gapless-ish advance: the moment the decoder signals end of file, open the next one
     // right here instead of waiting for a UI tick. The UI learns about it from g_pumpTrack.
     if (g_evtEof.exchange(false)) {
-      g_boundaries++;
       int cur = g_pumpTrack.load();
       int nxt = nextOf(cur);
-      if (nxt >= 0) openTrack(nxt);
+      if (nxt == 0 && g_rebootAtWrap.load()) {
+        // end of the playlist with a reboot requested: leave the card and the codec quiet,
+        // the supervisor restarts the box and the boot path starts from the first media.
+        g_audio.stopSong();
+        g_pumpTrack = -1;
+        g_rebootPending = true;
+      } else if (nxt >= 0) {
+        openTrack(nxt);
+      }
     }
     xSemaphoreGive(g_busLock);
     vTaskDelay(1);
@@ -245,6 +252,7 @@ void tick() {
         g_stallRestarts = 0;
       }
       syncgrp::reportPosition(pos * 1000UL, g_audio.isRunning());
+      if (g_rebootPending.load()) break;   // playlist ended on purpose, reboot is imminent
       if (!g_audio.isRunning() && g_pumpTrack.load() < 0) {
         // Decoder gave up without an eof (corrupt file): move on.
         log_w("decoder stopped on [%d] without eof", g_track);
@@ -301,14 +309,8 @@ const char* stateName(PlayerState s) {
   return "?";
 }
 
-bool atTrackBoundary() {
-  uint32_t b = g_boundaries.load();
-  if (b != g_lastBoundarySeen) {
-    g_lastBoundarySeen = b;
-    return true;
-  }
-  return false;
-}
+void requestRebootAtWrap() { g_rebootAtWrap = true; }
+bool rebootPending() { return g_rebootPending.load(); }
 
 TaskHandle_t pumpTask() { return g_pump; }
 

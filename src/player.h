@@ -30,7 +30,8 @@ void setVolume(uint8_t pct);
 void tick();                // UI-task supervisor step
 PlayerSnapshot snapshot();
 const char* stateName(PlayerState s);
-bool atTrackBoundary();     // true once, right after a track ended (daily reboot hook)
+void requestRebootAtWrap(); // stop instead of re-opening track 1 when the playlist wraps
+bool rebootPending();       // the pump reached the wrap and stopped: reboot now
 TaskHandle_t pumpTask();
 }
 
