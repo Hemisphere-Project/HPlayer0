@@ -28,6 +28,7 @@ std::atomic<bool> g_evtEof{false};
 std::atomic<bool> g_evtOpenFail{false};
 std::atomic<bool> g_evtOpened{false};
 std::atomic<int> g_pumpTrack{-1};        // what the pump is on (authoritative)
+std::atomic<int> g_pumpTried{-1};        // last track the pump attempted to open
 std::atomic<uint32_t> g_boundaries{0};   // count of track ends
 
 // UI-task state
@@ -62,6 +63,7 @@ bool openTrack(int track) {   // pump-task context, bus lock held by caller
   char path[cfg::MAX_NAME + 2];
   snprintf(path, sizeof(path), "/%s", library::at(track).name);
   g_audio.stopSong();
+  g_pumpTried = track;
   bool ok = g_audio.connecttoFS(SD, path);
   log_i("open [%d] %s -> %s", track, path, ok ? "ok" : "FAILED");
   g_pumpTrack = ok ? track : -1;
@@ -214,7 +216,8 @@ void tick() {
       }
       return;
     }
-    startTrack(nextOf(g_track));
+    // advance from the track that actually failed (the pump may already have moved on)
+    startTrack(nextOf(g_pumpTried.load() >= 0 ? g_pumpTried.load() : g_track));
     return;
   }
 

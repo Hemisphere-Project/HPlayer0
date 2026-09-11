@@ -79,7 +79,9 @@ bool begin() {
 void setVolume(uint8_t pct) {
   if (!g_es) return;
   if (pct > 100) pct = 100;
+  // the attenuator bottoms out at -45 dB, not silence: 0 means mute
   g_es->setDACVolume(pct);
+  g_es->setDACmute(pct == 0);
 }
 
 void setMute(bool mute) {

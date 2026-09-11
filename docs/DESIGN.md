@@ -45,7 +45,8 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
 ## Hardware truths (from WaveHopper's CoreS3 work, `~/Bakery/WaveHopper/players/m5cores3`)
 
 - Module Audio I2S on the CoreS3 (switch B): BCLK GPIO0, LRCK GPIO6, DOUT GPIO13, **MCLK
-  GPIO7, mandatory**. We take them from `M5.getPin(mbus_pin2x)` so the Fire gets its own.
+  GPIO7, mandatory**. We take them from `M5.getPin(mbus_pin2x)` (bus pins 24 / 21 / 23 / 22)
+  so the Fire gets its own: BCLK 13, LRCK 12, DOUT 15, MCLK 0 (switch A swaps 22 and 24).
 - Probe the module at **0x33** (STM32 helper) only: the CoreS3's BMM150 answers at 0x10.
 - Never `Wire.begin()` on the Core's internal I2C pins: the M5 wrapper library does, and it
   detaches `M5.In_I2C` (touch controller) silently. We talk to the codec through `M5.In_I2C`.
@@ -73,8 +74,9 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
 3. Pull the card while playing, reinsert: NO SD, then back to track 1.
 4. Files that fail (rename a .txt to .mp3): skipped, others still loop.
 5. Overnight soak with the health log captured; heap must be flat.
-6. Fire, switch A: same list, MCLK on a classic ESP32 is only valid on GPIO0/1/3 — verify
-   the M-Bus pin the module uses.
+6. Fire, switch A: same list. From M5Unified's M-Bus table the module lands on BCLK GPIO13,
+   LRCK GPIO12, DOUT GPIO15, MCLK GPIO0 — GPIO0 is one of the three MCLK-capable pins of a
+   classic ESP32, so the clock can work; still unproven on hardware.
 
 ## Nowde integration (after the Biennale delivery)
 

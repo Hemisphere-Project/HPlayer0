@@ -1,5 +1,6 @@
 #include "library.h"
 
+#include <M5Unified.h>
 #include <SD.h>
 #include <SPI.h>
 
@@ -32,7 +33,11 @@ namespace library {
 
 bool mount() {
   if (g_mounted) return true;
-  if (!SD.begin(cfg::SD_CS, SPI, cfg::SD_SPI_HZ)) {
+  // The card sits on the same SPI bus as the LCD: take the pins from M5Unified's table so
+  // every Core gets its own (CoreS3 36/37/35, Fire 18/23/19), CS is GPIO4 on all of them.
+  SPI.begin(M5.getPin(m5::pin_name_t::sd_spi_sclk), M5.getPin(m5::pin_name_t::sd_spi_cipo),
+            M5.getPin(m5::pin_name_t::sd_spi_copi), -1);
+  if (!SD.begin(M5.getPin(m5::pin_name_t::sd_spi_cs), SPI, cfg::SD_SPI_HZ)) {
     SD.end();
     return false;
   }

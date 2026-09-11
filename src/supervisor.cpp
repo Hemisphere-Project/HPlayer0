@@ -42,7 +42,7 @@ void begin(Settings* s) {
       .idle_core_mask = 0,
       .trigger_panic = true,
   };
-  esp_task_wdt_reconfigure(&twdt);
+  if (esp_task_wdt_reconfigure(&twdt) != ESP_OK) esp_task_wdt_init(&twdt);   // not started by the core
   esp_task_wdt_add(nullptr);
   codec::setLedBrightness(g_s->ledLevel);
 }
