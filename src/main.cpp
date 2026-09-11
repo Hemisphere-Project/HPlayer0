@@ -1,6 +1,6 @@
 /*
-    HPlayer0 - HPlayer0 is a modular media player designed for ESP32.
-    Copyright (C) 2024 Thomas BOHL - thomas@37m.gr
+    HPlayer0 — looping audio player for M5Stack Core + Module Audio (M144).
+    Copyright (C) 2024-2026 Thomas BOHL - thomas@37m.gr
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,287 +17,140 @@
 */
 
 #include <Arduino.h>
-
 #include <M5Unified.h>
-#include <SD.h>
-#include <Preferences.h>
+#include <esp_system.h>
 
-#include "audio.h"
-#include <usbmidi.h>
-#include <lora.h>
-#include <serialcmd.h>
+#include "codec.h"
+#include "config.h"
+#include "library.h"
+#include "menu.h"
+#include "player.h"
+#include "settings.h"
+#include "supervisor.h"
+#include "sync.h"
+#include "ui.h"
 
-#ifdef M5ATOM
-    #include <FastLED.h>
-    CRGB mainLED;
-#endif
+namespace {
+Settings g_settings;
+uint32_t g_lastRender = 0, g_lastGen = 0, g_lastPos = 0, g_lastRepeat = 0;
+bool g_lastMenu = false;
 
-Preferences preferences;
-
-// Default values
-byte destID     = 255;
-String audioOUT = "SPEAKER";
-int useMIDI     = 0;
-
-// Uncomment to burn to flash !!
-// #define DEST_ID     8            // DEST_ID: 0=regie 255=all
-// #define AUDIO_OUT   "BM8"        // LINE or SPEAKER or BTssid
-// #define USBMIDI     0            // 0: off, 1: on
-
-/////////////////////////////////////////////////////
-// DISPLAY
-/////////////////////////////////////////////////////
-
-void displayStatus(String name, bool status, int y, String txt = "") {
-    #if M5CORE
-    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-    M5.Display.drawString(name, 10, y);
-    if (!status) {
-        M5.Display.setTextColor(TFT_RED, TFT_BLACK);
-        M5.Display.drawString( (txt=="") ? "not found.." : txt, 90, y); 
-    }
-    else {
-        M5.Display.setTextColor(TFT_GREEN, TFT_BLACK);
-        M5.Display.drawString( (txt=="") ? "ok              " : txt, 90, y);
-    }
-    #endif
+const char* resetReason() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:  return "power-on";
+    case ESP_RST_SW:       return "software";
+    case ESP_RST_PANIC:    return "PANIC";
+    case ESP_RST_INT_WDT:  return "INT-WDT";
+    case ESP_RST_TASK_WDT: return "TASK-WDT";
+    case ESP_RST_WDT:      return "WDT";
+    case ESP_RST_BROWNOUT: return "BROWNOUT";
+    default:               return "other";
+  }
 }
 
-
-/////////////////////////////////////////////////////
-// CMD PROCESSOR / SENDER
-////////////////////////////////////////////////////
-
-void sendCmd(byte dest, byte cmd) 
-{
-    if ( loraSend(dest, cmd) ) {
-        String d = (dest==255)?"":"<"+String(dest)+">";
-        M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        M5.Display.drawString( "Lora OUT "+d+": "+String(cmd)+"             ", 10, 190);
-    }
-
-    serialcmdSend(dest, cmd);
+void volumeStep(int dir) {
+  int v = (int)g_settings.volume + dir * (int)cfg::VOL_STEP;
+  v = v < 0 ? 0 : (v > 100 ? 100 : v);
+  if (v == g_settings.volume) return;
+  g_settings.volume = (uint8_t)v;
+  player::setVolume(g_settings.volume);
+  settings::markDirty();
 }
 
-bool processCmd(byte dest, byte cmd) {
-    if (dest == 255 || dest == destID) {
-        // Volume
-        if (cmd >= 100 && cmd <= 227) {
-            Serial.println("Volume: "+String(cmd-100));
-            audioVolume(cmd-100);
-        }
-        // Media
-        else if (cmd == 255) audioStop();
-        else if (cmd < 100) audioPlayKey(cmd);
-        return true;
-    }
-    return false;
+// short press = one step; held = auto-repeat
+bool stepPressed(m5::Button_Class& b, uint32_t now) {
+  if (b.wasClicked()) return true;
+  if (b.pressedFor(cfg::BTN_REPEAT_DELAY) && now - g_lastRepeat >= cfg::BTN_REPEAT_MS) {
+    g_lastRepeat = now;
+    return true;
+  }
+  return false;
 }
 
+void handleInput(uint32_t now) {
+  bool pressed = M5.BtnA.wasPressed() || M5.BtnB.wasPressed() || M5.BtnC.wasPressed();
+  if (pressed && supervisor::noteInput()) {
+    // the press only woke the backlight — swallow it (release events too)
+    M5.BtnA.setRawState(now, false);
+    M5.BtnB.setRawState(now, false);
+    M5.BtnC.setRawState(now, false);
+    return;
+  }
+  if (menu::isOpen()) {
+    if (M5.BtnB.wasHold()) menu::close();
+    else if (M5.BtnB.wasClicked()) menu::onCenter();
+    if (stepPressed(M5.BtnA, now)) menu::onLeft();
+    if (stepPressed(M5.BtnC, now)) menu::onRight();
+  } else {
+    if (M5.BtnB.wasClicked()) menu::open();
+    if (stepPressed(M5.BtnA, now)) volumeStep(-1);
+    if (stepPressed(M5.BtnC, now)) volumeStep(+1);
+  }
+}
+}  // namespace
 
-/////////////////////////////////////////////////////
-// HOTPLUG DETECT
-/////////////////////////////////////////////////////
-bool midiDetected = false;
-bool sdDetected = false;
-bool audioConnected = false;
+void setup() {
+  Serial.begin(115200);
+  auto cfgm5 = M5.config();
+  cfgm5.internal_spk = false;   // the Module Audio owns I2S; keep M5.Speaker off the bus
+  cfgm5.internal_mic = false;   // and the CoreS3's ES7210 off the shared pins
+  cfgm5.clear_display = true;
+  M5.begin(cfgm5);
+  M5.BtnB.setHoldThresh(cfg::MENU_HOLD_MS);
 
-void hotplug() {
-    // SD hot plug
-    //
-    if (sdDetected != audioSDok()) {
-        sdDetected = audioSDok();
-        displayStatus("SD", sdDetected, 70);
-        if (sdDetected) Serial.println("SD OK");
-        else Serial.println("SD not found..");
-    }
+  settings::load(g_settings);
+  ui::begin(g_settings.brightness);
+  ui::bootLine("fw %s  board %s", HP_VERSION, HP_BOARD);
+  ui::bootLine("reset: %s", resetReason());
+  log_i("HPlayer0 %s on %s (board id %d), reset %s", HP_VERSION, HP_BOARD, (int)M5.getBoard(), resetReason());
 
-    // MIDI hot plug
-    //
-    if (useMIDI && midiDetected != midiOK()) {
-        midiDetected = midiOK();
-        displayStatus("MIDI", midiDetected, 90);
-    }
+  bool mod = codec::probe();
+  ui::bootLine("module audio: %s", mod ? "found" : "NOT FOUND");
+  if (mod) {
+    if (!codec::begin()) ui::bootLine("codec init FAILED");
+  }
+  AudioPins pins = codec::pins();
+  ui::bootLine("i2s bclk=%d lrck=%d dout=%d mclk=%d", pins.bclk, pins.lrck, pins.dout, pins.mclk);
 
-    // BT hot plug
-    //
-    if (audioConnected != audioLINKok()) {
-        audioConnected = audioLINKok();
-        displayStatus("Audio", audioConnected, 50, audioOUTname());
+  bool sd = library::mount();
+  ui::bootLine("sd card: %s", sd ? "ok" : "none");
+  size_t n = sd ? library::scan() : 0;
+  if (sd) ui::bootLine("%u tracks", (unsigned)n);
 
-        #ifdef M5ATOM
-            // GREEN Led ATOM 
-            mainLED = audioConnected ? CRGB::Green : CRGB::Red;
-            FastLED.show();
-        #endif  
-    }
+  player::begin(pins, g_settings.volume);
+  codec::setVolume(g_settings.volume);
+  syncgrp::begin();
+  menu::begin(&g_settings);
+  supervisor::begin(&g_settings);
+  player::onLibraryChanged();
+  delay(400);
 }
 
+void loop() {
+  uint32_t now = millis();
+  M5.update();
+  handleInput(now);
+  player::tick();
+  supervisor::tick(menu::isOpen());
+  settings::tick(g_settings);
 
-/////////////////////////////////////////////////////
-
-void setup(void) {
-
-    Serial.begin(115200);
-    Serial.println("Start");
-
-    M5.begin();
-    M5.Power.begin();
-
-    #ifdef AUDIO_OUT
-        if (preferences.getString("audioout", audioOUT) != AUDIO_OUT) {
-            preferences.begin("HPlayer0", false);
-            preferences.putString("audioout", AUDIO_OUT);
-            preferences.end();
-        }
-    #endif
-
-    #ifdef USBMIDI
-        if (preferences.getInt("usbmidi", useMIDI) != USBMIDI) {
-            preferences.begin("HPlayer0", false);
-            preferences.putInt("usbmidi", USBMIDI);
-            preferences.end();
-        }
-    #endif
-
-    #ifdef DEST_ID
-        if (preferences.getInt("destid", destID) != DEST_ID) {
-            preferences.begin("HPlayer0", false);
-            preferences.putInt("destid", DEST_ID);
-            preferences.end();
-        }
-    #endif
-
-    // Preferences init ( Read-only )
-    preferences.begin("HPlayer0", true);
-
-    destID      = preferences.getInt("destid",      destID);
-    useMIDI     = preferences.getInt("usbmidi",     useMIDI); 
-    audioOUT    = preferences.getString("audioout", audioOUT);
-
-    // AUDIO init
-    audioSetup( audioOUT );
-    audioVolume(20);
-    
-#if M5CORE 
-    // DISPLAY init
-    M5.Display.clear(TFT_BLACK);
-    M5.Display.setFont(&DejaVu18);
-    M5.Display.setTextColor(TFT_CYAN, TFT_BLACK);
-    M5.Display.drawString(".::HPlayer0::.", 10, 20);
-
-    // Dest ID
-    M5.Display.setTextColor(TFT_YELLOW, TFT_BLACK);
-    M5.Display.drawString( "#"+String(destID), 260, 20);
-    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-    // AUDIO OUT
-    displayStatus("Audio", false, 50, audioOUTname());
-
-    // SD CARD ready ?
-    displayStatus("SD", false, 70);
-
-    // USB MIDI init
-    if (useMIDI) {
-        displayStatus("MIDI", false, 90);
-
-        midiSetup([](byte dest, byte cmd) {
-            sendCmd(dest, cmd); // forward received MIDI => LoRa & Serial1
-            processCmd(dest, cmd);
-            String d = (dest==255)?"":"<"+String(dest)+">";
-            M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-            M5.Display.drawString( "Midi IN "+d+": "+String(cmd)+"         ", 10, 170);
-        });
+  if (now - g_lastRender >= cfg::UI_PERIOD_MS) {
+    PlayerSnapshot s = player::snapshot();
+    bool menuOpen = menu::isOpen();
+    bool changed = s.generation != g_lastGen || s.posSec != g_lastPos || menuOpen != g_lastMenu ||
+                   menuOpen /* live values */ || now - g_lastRender >= 1000;
+    if (changed) {
+      UiStatus st;
+      st.sdMounted = library::mounted();
+      st.trackCount = library::count();
+      st.syncState = syncgrp::stateName();
+      st.menuOpen = menuOpen;
+      ui::render(s, st);
+      g_lastGen = s.generation;
+      g_lastPos = s.posSec;
+      g_lastMenu = menuOpen;
+      g_lastRender = now;
     }
-
-    // SERIALCMD init
-    else {    
-        bool serialstatus = serialcmdSetup( 22, 21, [](byte dest, byte cmd) {
-            String d = (dest==255)?"":"<"+String(dest)+">";
-            if ( processCmd(dest, cmd) ) {
-                M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-                M5.Display.drawString( "Serial IN "+d+": "+String(cmd)+"         ", 10, 170);
-            }
-            Serial.println("Serial IN "+d+": "+String(cmd));
-        });
-        displayStatus("Serial1", serialstatus, 90);
-    }
-
-    // LORA init
-    bool lorastatus = loraSetup( [](byte dest, byte cmd) {
-            serialcmdSend(dest, cmd); // forward received LoRa => Serial1
-            if ( processCmd(dest, cmd) ) {
-                M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-                M5.Display.drawString( "LORA IN: "+String(cmd)+"         ", 10, 170);
-            }
-        });
-    displayStatus("LoRa", lorastatus, 110);
-
-#elif M5ATOM
-    serialcmdSetup( 26, 32, [](byte dest, byte cmd) {
-        processCmd(dest, cmd);
-        if (dest = 255 || dest == destID) 
-            Serial.println("SERIAL IN: "+String(cmd));
-    }); 
-
-    // RED Led ATOM 
-    FastLED.addLeds<NEOPIXEL, 27>(&mainLED, 1);
-    FastLED.setBrightness(37);
-    mainLED = CRGB::Red;
-    FastLED.show();   
-#endif
-
-}
-
-/////////////////////////////////////////////////////
-
-void loop(void) 
-{   
-    hotplug();
-    midiLoop();
-    loraLoop();
-    serialcmdLoop();
-    audioLoop();
-    M5.update();
-
-
-#if M5CORE
-    // if (M5.BtnA.wasClicked()) {
-    //     byte i = audioPrevKey();
-    //     M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    //     M5.Display.drawString( "PREV: "+String(i)+"         ", 10, 170);
-    //     // sendCmd(i);
-    //     serialcmdSend(255, i);
-    //     audioPlayKey(i);
-    // }
-
-    // if (M5.BtnB.wasClicked()) {
-    //     M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    //     M5.Display.drawString( "STOP                  ", 10, 170);
-    //     // sendCmd(255);
-    //     serialcmdSend(255, 255);
-    //     audioStop();
-    // }
-
-    // if (M5.BtnC.wasClicked()) {
-    //     byte i = audioNextKey();
-    //     M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    //     M5.Display.drawString( "NEXT: "+String(i)+"         ", 10, 170);
-    //     // sendCmd(i);
-    //     serialcmdSend(255, i);
-    //     audioPlayKey(i);
-    // }
-#elif M5ATOM
-    // if (M5.BtnA.wasHold()) {
-    //     byte i = audioPrevKey();
-    //     serialcmdSend(255, 255);
-    //     audioStop();
-    // }
-    // else if (M5.BtnA.wasClicked()) {
-    //     byte i = audioNextKey();
-    //     serialcmdSend(255, i);
-    //     audioPlayKey(i);
-    // }
-#endif
-
+  }
+  vTaskDelay(pdMS_TO_TICKS(5));
 }

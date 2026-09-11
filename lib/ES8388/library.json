@@ -1,0 +1,8 @@
+{
+  "name": "ES8388",
+  "version": "0.0.2-m5",
+  "description": "ES8388 codec register driver, vendored from m5stack/M5Module-Audio (MIT). I2C only: the audio engine owns I2S.",
+  "license": "MIT",
+  "frameworks": ["arduino"],
+  "platforms": ["espressif32"]
+}
