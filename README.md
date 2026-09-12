@@ -53,7 +53,8 @@ green playing, blue starting or menu, orange no media, red no card or failure.
   from the first media), USB drive mode, version, uptime, heap, track count, sync state,
   reboot now, exit.
 - When idle, the backlight dims to 50 % of the set brightness; any press, touch or drag
-  only wakes it, and so does moving the box when the Core has its IMU.
+  only wakes it. Motion wake is coded for Cores with an IMU, but the CoreS3 SE has none
+  (M5Unified finds no IMU on it), so on the SE only a touch or a button wakes the screen.
 
 ## USB drive mode
 

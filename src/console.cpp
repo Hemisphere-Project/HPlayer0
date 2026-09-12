@@ -1,5 +1,6 @@
 #include "console.h"
 
+#include <M5Unified.h>
 #include <USBCDC.h>
 
 #include "config.h"
@@ -30,10 +31,10 @@ void run(char* line) {
     out.println("help info bench dump next prev play N stop vol N usb eject reboot");
   } else if (!strcmp(line, "info")) {
     PlayerSnapshot s = player::snapshot();
-    out.printf("fw %s state=%s track=%d/%u pos=%lu/%lu vol=%u heap=%lu psram=%lu usb=%d host=%d ioerr=%lu\n",
+    out.printf("fw %s state=%s track=%d/%u pos=%lu/%lu vol=%u heap=%lu psram=%lu usb=%d host=%d ioerr=%lu imu=%d\n",
                HP_VERSION, player::stateName(s.state), s.track, (unsigned)library::count(),
                (unsigned long)s.posSec, (unsigned long)s.durSec, s.volume, (unsigned long)ESP.getFreeHeap(),
-               (unsigned long)ESP.getFreePsram(), (int)usbdrive::state(), (int)usbdrive::hostConnected(), (unsigned long)usbdrive::ioErrors());
+               (unsigned long)ESP.getFreePsram(), (int)usbdrive::state(), (int)usbdrive::hostConnected(), (unsigned long)usbdrive::ioErrors(), (int)M5.Imu.getType());
     for (size_t i = 0; i < library::count(); ++i) out.printf("  [%u] %s\n", (unsigned)i, library::at(i).name);
   } else if (!strcmp(line, "dump")) {
     usbdrive_dump(out);

@@ -74,6 +74,8 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
   recreate → intermittent IDLE0 panic). Decode task and `audio.loop()` on opposite cores.
 - `cfg.internal_spk = false` and `internal_mic = false` in `M5.config()`, or M5Unified's own
   speaker driver fights for the I2S peripheral on the CoreS3.
+- The **CoreS3 SE has no IMU** (verified 2026-09-12: `M5.Imu.getType()` = `imu_none`), unlike
+  the CoreS3 with its BMI270. The motion-wake code in `supervisor` stays dormant on the SE.
 
 ## Robustness
 
