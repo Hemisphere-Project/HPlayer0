@@ -6,6 +6,7 @@
 #include "config.h"
 #include "library.h"
 #include "sync.h"
+#include "usbdrive.h"
 
 namespace {
 Settings* g_s = nullptr;
@@ -13,7 +14,7 @@ bool g_open = false;
 size_t g_sel = 0;
 
 enum Item : size_t {
-  BRIGHTNESS = 0, DIM, LED, REBOOT_EVERY,
+  USB_DRIVE = 0, BRIGHTNESS, DIM, LED, REBOOT_EVERY,
   INFO_VERSION, INFO_UPTIME, INFO_HEAP, INFO_TRACKS, INFO_SYNC,
   REBOOT_NOW, EXIT, COUNT
 };
@@ -64,6 +65,9 @@ void adjust(int dir) {
       apply();
       break;
     }
+    case USB_DRIVE:
+      if (usbdrive::hostConnected()) { g_open = false; usbdrive::enter(); }
+      break;
     case REBOOT_NOW:
       settings::flushNow(*g_s);
       log_w("reboot requested from menu");
@@ -94,12 +98,12 @@ size_t count() { return COUNT; }
 size_t selected() { return g_sel; }
 
 bool editable(size_t i) {
-  return i == BRIGHTNESS || i == DIM || i == LED || i == REBOOT_EVERY || i == REBOOT_NOW || i == EXIT;
+  return i == USB_DRIVE || i == BRIGHTNESS || i == DIM || i == LED || i == REBOOT_EVERY || i == REBOOT_NOW || i == EXIT;
 }
 
 void label(size_t i, char* out, size_t n) {
   static const char* const names[COUNT] = {
-      "Brightness", "Dim after", "Module LEDs", "Auto reboot",
+      "USB drive mode", "Brightness", "Dim after", "Module LEDs", "Auto reboot",
       "Version", "Uptime", "Heap free", "Tracks", "Sync",
       "Reboot now", "Exit"};
   strlcpy(out, i < COUNT ? names[i] : "?", n);
@@ -107,6 +111,7 @@ void label(size_t i, char* out, size_t n) {
 
 void value(size_t i, char* out, size_t n) {
   switch (i) {
+    case USB_DRIVE: strlcpy(out, usbdrive::hostConnected() ? "< start >" : "no computer", n); break;
     case BRIGHTNESS: snprintf(out, n, "%d%%", (g_s->brightness * 100) / 255); break;
     case DIM:
       if (g_s->dimAfterS == 0) strlcpy(out, "never", n);

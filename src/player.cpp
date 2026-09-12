@@ -184,7 +184,7 @@ void prev() { if (library::count()) startTrack((g_track - 1 + (int)library::coun
 
 void stop() {
   send(Cmd{Cmd::Stop, 0, 0});
-  g_state = library::count() ? PlayerState::Empty : PlayerState::NoSd;
+  g_state = library::count() ? PlayerState::Stopped : PlayerState::NoSd;
   g_gen++;
 }
 
@@ -196,7 +196,7 @@ void setVolume(uint8_t pct) {
 
 void tick() {
   uint32_t now = millis();
-  if (g_state == PlayerState::NoSd || g_state == PlayerState::Empty) return;
+  if (g_state == PlayerState::NoSd || g_state == PlayerState::Empty || g_state == PlayerState::Stopped) return;
 
   // Follow the pump's own advances (end of file -> next track).
   int pt = g_pumpTrack.load();
@@ -305,6 +305,7 @@ const char* stateName(PlayerState s) {
     case PlayerState::Starting: return "starting";
     case PlayerState::Playing:  return "playing";
     case PlayerState::Failed:   return "failed";
+    case PlayerState::Stopped:  return "stopped";
   }
   return "?";
 }

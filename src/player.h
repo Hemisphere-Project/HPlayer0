@@ -7,7 +7,7 @@
 
 #include "codec.h"
 
-enum class PlayerState : uint8_t { NoSd, Empty, Starting, Playing, Failed };
+enum class PlayerState : uint8_t { NoSd, Empty, Starting, Playing, Failed, Stopped };
 
 struct PlayerSnapshot {
   PlayerState state = PlayerState::NoSd;

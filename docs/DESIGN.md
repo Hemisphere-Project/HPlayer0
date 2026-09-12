@@ -19,11 +19,13 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
 | `library` | read-only scan of the SD root into a fixed table, sorted, numeric prefix = cue index |
 | `player` | ESP32-audioI2S 3.4.7 behind a command queue; loops the table; failure = next track |
 | `codec` | ES8388 over `M5.In_I2C` (vendored driver in `lib/ES8388`), STM32 helper for LEDs / jack |
-| `ui` | one 320x240 sprite in PSRAM, list centred on the current track, marquee title, tap-to-play mapping, pushed under the bus lock |
+| `ui` | one 320x240 sprite in PSRAM, list centred on the current track, marquee title, time chip, tap-to-play mapping, pushed under the bus lock |
 | `menu` | center-button menu, edits `Settings`, applies immediately |
 | `settings` | NVS, writes coalesced 2 s after the last change |
 | `supervisor` | SD hot-plug, idle dim, LEDs, scheduled reboot at the playlist wrap, health log, task watchdog |
 | `sync` | stub seam for the Nowde slave role (see below) |
+| `usbdrive` | TinyUSB composite: CDC (log + console + flashing) and MSC exposing the card by sectors; offer / active state machine |
+| `console` | one-line commands on the CDC for the bench (`usb`, `eject`, `play N`, ...) |
 
 ## Decisions
 
@@ -34,13 +36,19 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
   duration for mp3, that would have to be parsed from the frames).
 - **CoreS3 SE only** *(T, 2026-09-11 evening)*: the Fire env was dropped. Pins still come
   from M5Unified's M-Bus table, so re-adding a Fire env is a two-line change if wanted.
-- **Look** *(T)*: red / yellow / green / cyan on black, "retro-future". VT323 (CRT terminal
-  face, Latin-1 so accents render) for text, Orbitron for the header and button labels,
-  1 px frames, no rounded corners. M5GFX's built-in DejaVu fonts are ASCII-only, which is
-  why the first build drew squares for `é`.
+- **Look** *(T)*: red / yellow / green / cyan on black, "retro-future" but light: no frames,
+  plain labels, a faint fill under the playing row, the time in a small chip on that row's
+  top edge so the title keeps the whole width (the row above is clipped to make room).
+  Fonts: Share Tech for text (Latin-1 so accents render), Share Tech Mono for numbers,
+  Orbitron for the header. VT323 was tried first and judged too hard; M5GFX's built-in
+  DejaVu fonts are ASCII-only, which is why the very first build drew squares for `é`.
 - **Touch**: the CoreS3 SE screen is a touch panel. Tap a list row to play it, tap a menu
-  entry to select it and again to act. M5Unified keeps mapping the strip under the LCD
-  (y ≥ 240) to BtnA/B/C, so the three button roles are unchanged.
+  entry to select it and again to act. Drag the list to browse when it is longer than the
+  seven rows (one row per 24 px, wraps, recentres after 6 s idle or on a track change);
+  shorter lists are drawn whole and static so every file stays visible whatever plays.
+  M5Unified keeps mapping the strip under the LCD (y ≥ 240) to BtnA/B/C, so the three
+  button roles are unchanged. The header's middle dot in `HPLAYER·0` is drawn by hand:
+  Orbitron's TTF has no U+00B7 glyph and the generator emits a tofu box for it.
 - **Loop: whole playlist, no gap** *(T)*. The pump task opens the next file the moment the
   decoder reports end of file, without waiting for a UI tick.
 - **Volume in the codec**, not in the engine: the ES8388 DAC attenuator keeps the full
@@ -89,6 +97,43 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
 Bench log 2026-09-11 (CoreS3 SE, 30 GB card, 6 files: wav, flac, m4a, ogg, opus, mp3):
 boot to first sound in under a second, module found, position tracks real time, heap flat
 at 192 KB free across the run, transitions open the next file at the end-of-file event.
+
+## USB drive mode
+
+- `platformio.ini` switches the CoreS3 SE from the hardware serial-JTAG (`ARDUINO_USB_MODE=1`,
+  what the board manifest sets) to TinyUSB OTG (`=0`), with `ARDUINO_USB_CDC_ON_BOOT=0` so
+  the descriptors (VID 0x303A, PID 0x8001, Hemisphere / HPlayer0 / MAC serial) are set before
+  `USB.begin()`. `USBCDC::setDebugOutput(true)` routes the `log_*` lines to the CDC. Uploads
+  use PlatformIO's 1200-baud touch (`use_1200bps_touch`, `wait_for_upload_port`), as Nowde.
+- The MSC LUN is created at boot with the card's sector count and **media absent**: the
+  computer sees a card reader with no card. Entering drive mode stops the player, then flips
+  `mediaPresent(true)`; the host polls TEST UNIT READY and mounts. Leaving flips it back,
+  then `SD.end()` + `SD.begin()` + rescan: FatFs must not trust anything it cached before
+  the computer rewrote the card. Enter needs the card that was there at boot (the LUN size
+  is fixed at `begin`); a card inserted later needs a reboot before drive mode.
+- Sector callbacks run in the TinyUSB task under the same SPI bus lock as the audio pump
+  and the display push. TinyUSB hands 4 KB chunks (`CONFIG_TINYUSB_MSC_BUFSIZE`); the SD
+  library's `readRAW` is one command per sector, so the module declares the diskio layer's
+  `ff_sd_read` / `ff_sd_write` (non-static in `sd_diskio.cpp`) and moves 8 sectors per
+  command. The FatFs drive number is found by matching `sdcard_num_sectors(d)`.
+- Host detection = `ARDUINO_USB_STARTED_EVENT` (enumeration). A charger never enumerates,
+  so the offer only appears on a computer; it times out after 15 s. Leaving happens on the
+  host's eject (`onStartStop` with `load_eject`), on unplug / suspend, on the console's
+  `eject`, or by holding MENU on the drive screen.
+- Bench 2026-09-11/12 on the laptop: enumerates as `303a:8001 Hemisphere HPlayer0`, `/dev/sda`
+  "HPlayer microSD" 0 B until drive mode, then 29.8 GB with the FAT partition mounted;
+  single-sector commands gave 309 kB/s read / 177 kB/s write; 8-sector commands through a
+  **DMA-capable bounce buffer** give 503 kB/s read / 584 kB/s write, zero errors. Passing
+  TinyUSB's own buffer straight to `ff_sd_read` looked fine locally (`bench` reads 2 MB at
+  1.5 MB/s) but every host session stalled after exactly 3244 KB with no error on either
+  side — the SPI driver wants DMA-able, aligned memory for multi-block transfers. Ejecting
+  (console) remounted and rescanned to 8 files and playback restarted.
+- While the computer holds the card the serial output is muted (Nowde's finding on this
+  TinyUSB build: two busy IN endpoints lose transfers) and the log goes to an 8 KB RAM
+  ring the console prints with `dump`. `bench` measures local SD read throughput.
+- Serial tooling gotcha: a second process opening the CDC port drops DTR on close, and
+  `USBCDC::write` silently discards everything while DTR is low, so the log goes mute.
+  One reader owns the port and relays commands (`scratchpad/capture.py` + `cmd.txt`).
 
 ## Nowde integration (after the Biennale delivery)
 

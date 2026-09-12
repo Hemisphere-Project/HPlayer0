@@ -7,6 +7,7 @@
 #include "config.h"
 #include "library.h"
 #include "player.h"
+#include "usbdrive.h"
 
 namespace {
 Settings* g_s = nullptr;
@@ -61,8 +62,11 @@ void tick(bool menuOpen) {
   uint32_t now = millis();
   esp_task_wdt_reset();
 
-  // --- SD hot-plug -------------------------------------------------------------------
-  if (!library::mounted()) {
+  // --- SD hot-plug (not while the computer holds the card) --------------------------------
+  bool drive = usbdrive::state() == usbdrive::State::Active;
+  if (drive) {
+    // nothing: the MSC callbacks own the bus
+  } else if (!library::mounted()) {
     if ((int32_t)(now - g_sdRetryAt) >= 0) {
       g_sdRetryAt = now + cfg::SD_RETRY_MS;
       SemaphoreHandle_t lock = player_busLock();
@@ -92,13 +96,15 @@ void tick(bool menuOpen) {
 
   // --- module LEDs -----------------------------------------------------------------------
   PlayerSnapshot s = player::snapshot();
-  if (menuOpen) leds(0x0020FF);
+  if (drive) leds(0x8080FF);
+  else if (menuOpen) leds(0x0020FF);
   else switch (s.state) {
       case PlayerState::Playing:  leds(0x00FF20); break;
       case PlayerState::Starting: leds(0x00A0FF); break;
       case PlayerState::Empty:    leds(0xFF6000); break;
       case PlayerState::NoSd:     leds(0xFF0000); break;
       case PlayerState::Failed:   leds(0xFF0040); break;
+      case PlayerState::Stopped:  leds(0x404040); break;
     }
 
   // --- scheduled reboot: armed after N hours, taken at the END of the playlist -----------
@@ -119,8 +125,8 @@ void tick(bool menuOpen) {
   // --- health log ------------------------------------------------------------------------
   if ((int32_t)(now - g_healthAt) >= 0) {
     g_healthAt = now + cfg::HEALTH_LOG_MS;
-    log_i("[health] up=%lus state=%s track=%d pos=%lu/%lu heap=%lu min=%lu psram=%lu",
-          (unsigned long)(now / 1000), player::stateName(s.state), s.track, (unsigned long)s.posSec,
+    log_i("[health] up=%lus state=%s track=%d/%u pos=%lu/%lu heap=%lu min=%lu psram=%lu",
+          (unsigned long)(now / 1000), player::stateName(s.state), s.track, (unsigned)library::count(), (unsigned long)s.posSec,
           (unsigned long)s.durSec, (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap(),
           (unsigned long)ESP.getFreePsram());
   }

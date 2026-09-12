@@ -21,6 +21,7 @@
 #include <esp_system.h>
 
 #include "codec.h"
+#include "console.h"
 #include "config.h"
 #include "library.h"
 #include "menu.h"
@@ -29,12 +30,14 @@
 #include "supervisor.h"
 #include "sync.h"
 #include "ui.h"
+#include "usbdrive.h"
 
 namespace {
 Settings g_settings;
 uint32_t g_lastRender = 0, g_lastGen = 0, g_lastPos = 0, g_lastRepeat = 0;
 bool g_lastMenu = false;
 bool g_swallowTap = false;
+uint32_t g_lastView = 0, g_lastUsbGen = 0;
 
 const char* resetReason() {
   switch (esp_reset_reason()) {
@@ -82,6 +85,28 @@ void handleInput(uint32_t now) {
     g_swallowTap = true;
     return;
   }
+  // USB drive: the offer modal takes every input, the drive screen only the forced exit
+  if (usbdrive::state() == usbdrive::State::Offered) {
+    if (M5.BtnA.wasClicked()) usbdrive::answer(false);
+    if (M5.BtnC.wasClicked()) usbdrive::answer(true);
+    if (t.wasClicked() && t.y < 240) {
+      if (g_swallowTap) g_swallowTap = false;
+      else {
+        int h = ui::modalHit(t.x, t.y);
+        if (h >= 0) usbdrive::answer(h == 1);
+      }
+    }
+    return;
+  }
+  if (usbdrive::state() == usbdrive::State::Active) {
+    if (M5.BtnB.wasHold()) usbdrive::leave();
+    if (t.wasClicked()) g_swallowTap = false;
+    return;
+  }
+  if (!menu::isOpen()) {
+    if (t.isPressed() && t.y < 240) ui::dragBy(t.deltaY(), player::snapshot(), library::count(), now);
+    if (t.wasReleased()) ui::dragEnd(player::snapshot(), library::count(), now);
+  }
   if (t.wasClicked() && t.y < 240) {
     if (g_swallowTap) g_swallowTap = false;
     else if (menu::isOpen()) {
@@ -108,8 +133,13 @@ void handleInput(uint32_t now) {
 }
 }  // namespace
 
+void console_setVolume(uint8_t pct) {
+  g_settings.volume = pct;
+  player::setVolume(pct);
+  settings::markDirty();
+}
+
 void setup() {
-  Serial.begin(115200);
   auto cfgm5 = M5.config();
   cfgm5.internal_spk = false;   // the Module Audio owns I2S; keep M5.Speaker off the bus
   cfgm5.internal_mic = false;   // and the CoreS3's ES7210 off the shared pins
@@ -136,6 +166,11 @@ void setup() {
   size_t n = sd ? library::scan() : 0;
   if (sd) ui::bootLine("%u tracks", (unsigned)n);
 
+  usbdrive::begin();   // needs the card's sector count; the log moves to the USB serial from here
+  log_i("HPlayer0 %s on %s (board id %d), reset %s, %u tracks", HP_VERSION, HP_BOARD, (int)M5.getBoard(),
+        resetReason(), (unsigned)n);
+  ui::bootLine("usb: serial + drive ready");
+
   player::begin(pins, g_settings.volume);
   codec::setVolume(g_settings.volume);
   syncgrp::begin();
@@ -150,14 +185,21 @@ void loop() {
   M5.update();
   handleInput(now);
   player::tick();
+  usbdrive::tick(now);
+  console::tick();
+  ui::tick(player::snapshot(), library::count(), now);
   supervisor::tick(menu::isOpen());
   settings::tick(g_settings);
 
-  if (now - g_lastRender >= cfg::UI_PERIOD_MS) {
+  uint32_t period = ui::renderPeriod();
+  if (period == 0) period = cfg::UI_PERIOD_MS;
+  if (now - g_lastRender >= period) {
     PlayerSnapshot s = player::snapshot();
     bool menuOpen = menu::isOpen();
     bool changed = s.generation != g_lastGen || s.posSec != g_lastPos || menuOpen != g_lastMenu ||
-                   menuOpen /* live values */ || ui::animating() || now - g_lastRender >= 1000;
+                   ui::viewGeneration() != g_lastView || usbdrive::generation() != g_lastUsbGen ||
+                   menuOpen /* live values */ || usbdrive::state() == usbdrive::State::Offered ||
+                   ui::animating() || now - g_lastRender >= 1000;
     if (changed) {
       UiStatus st;
       st.sdMounted = library::mounted();
@@ -165,8 +207,14 @@ void loop() {
       st.syncState = syncgrp::stateName();
       st.syncLinked = syncgrp::linked();
       st.menuOpen = menuOpen;
+      st.usbState = (uint8_t)usbdrive::state();
+      st.offerMs = usbdrive::offerRemainingMs(now);
+      st.usbRead = usbdrive::bytesRead();
+      st.usbWritten = usbdrive::bytesWritten();
       ui::render(s, st);
       g_lastGen = s.generation;
+      g_lastUsbGen = usbdrive::generation();
+      g_lastView = ui::viewGeneration();
       g_lastPos = s.posSec;
       g_lastMenu = menuOpen;
       g_lastRender = now;
