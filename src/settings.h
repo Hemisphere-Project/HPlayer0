@@ -5,7 +5,7 @@
 #include <Arduino.h>
 
 struct Settings {
-  uint8_t  volume     = 60;    // 0..100, codec DAC level
+  uint8_t  volume     = 80;    // 0..100, codec DAC level
   uint8_t  brightness = 160;   // 10..255
   uint16_t dimAfterS  = 300;   // seconds idle before the backlight dims, 0 = never
   uint8_t  rebootEveryH = 0;   // uptime hours before a between-tracks reboot, 0 = off

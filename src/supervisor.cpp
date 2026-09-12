@@ -2,6 +2,7 @@
 
 #include <M5Unified.h>
 #include <esp_task_wdt.h>
+#include <math.h>
 
 #include "codec.h"
 #include "config.h"
@@ -15,6 +16,9 @@ uint32_t g_lastInput = 0;
 bool g_dimmed = false;
 uint32_t g_sdRetryAt = 0, g_sdCheckAt = 0, g_healthAt = 0;
 uint32_t g_ledColor = 0xFFFFFFFF;
+bool g_imu = false;
+uint32_t g_imuAt = 0;
+float g_ax = 0, g_ay = 0, g_az = 0;
 
 void leds(uint32_t rgb) {
   if (rgb == g_ledColor) return;
@@ -46,6 +50,9 @@ void begin(Settings* s) {
   if (esp_task_wdt_reconfigure(&twdt) != ESP_OK) esp_task_wdt_init(&twdt);   // not started by the core
   esp_task_wdt_add(nullptr);
   codec::setLedBrightness(g_s->ledLevel);
+  // motion wake: the CoreS3 family carries a BMI270 on the internal bus (the SE may not)
+  g_imu = M5.Imu.isEnabled();
+  log_i("imu: %s", g_imu ? "found, motion wakes the screen" : "none");
 }
 
 bool noteInput() {
@@ -85,6 +92,18 @@ void tick(bool menuOpen) {
     if (!alive) {
       player::onLibraryChanged();
       g_sdRetryAt = now + cfg::SD_RETRY_MS;
+    }
+  }
+
+  // --- motion wake -------------------------------------------------------------------
+  if (g_imu && now - g_imuAt >= 100) {
+    g_imuAt = now;
+    if (M5.Imu.update()) {
+      float ax, ay, az;
+      M5.Imu.getAccel(&ax, &ay, &az);
+      float d = fabsf(ax - g_ax) + fabsf(ay - g_ay) + fabsf(az - g_az);
+      g_ax = ax; g_ay = ay; g_az = az;
+      if (d > cfg::WAKE_G && g_dimmed) noteInput();
     }
   }
 

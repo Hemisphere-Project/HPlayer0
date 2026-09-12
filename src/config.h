@@ -23,11 +23,12 @@ constexpr uint32_t SD_SPI_HZ      = 25000000;
 constexpr size_t   MAX_FILES      = 256;
 constexpr size_t   MAX_NAME       = 96;
 
-constexpr uint8_t  VOL_DEFAULT    = 60;    // codec DAC volume, percent
+constexpr uint8_t  VOL_DEFAULT    = 80;    // codec DAC volume, percent
 constexpr uint8_t  VOL_STEP       = 5;
 constexpr uint8_t  BRIGHT_DEFAULT = 160;   // 0..255
 constexpr uint8_t  BRIGHT_MIN     = 10;
-constexpr uint8_t  DIM_PERCENT    = 40;    // idle backlight, as a share of the set brightness
+constexpr uint8_t  DIM_PERCENT    = 50;    // idle backlight, as a share of the set brightness
+constexpr float    WAKE_G         = 0.15f; // accel change between two IMU samples that wakes the screen
 
 constexpr uint32_t UI_PERIOD_MS       = 100;
 constexpr uint32_t BTN_REPEAT_DELAY   = 400;
