@@ -133,7 +133,7 @@ at 192 KB free across the run, transitions open the next file at the end-of-file
   ring the console prints with `dump`. `bench` measures local SD read throughput.
 - Serial tooling gotcha: a second process opening the CDC port drops DTR on close, and
   `USBCDC::write` silently discards everything while DTR is low, so the log goes mute.
-  One reader owns the port and relays commands (`scratchpad/capture.py` + `cmd.txt`).
+  One reader owns the port and relays commands (`scripts/serial_capture.py` + `serial_cmd.py`).
 
 ## Nowde integration (after the Biennale delivery)
 
