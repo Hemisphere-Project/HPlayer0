@@ -75,7 +75,7 @@ bool stepPressed(m5::Button_Class& b, uint32_t now) {
 
 void handleInput(uint32_t now) {
   auto& t = M5.Touch.getDetail();
-  bool touchOnScreen = t.wasPressed() && t.y < 240;   // the strip below the LCD is BtnA/B/C
+  bool touchOnScreen = t.isPressed() && t.y < 240;    // any touched sample; the strip below the LCD is BtnA/B/C
   bool pressed = M5.BtnA.wasPressed() || M5.BtnB.wasPressed() || M5.BtnC.wasPressed() || touchOnScreen;
   if (pressed && supervisor::noteInput()) {
     // the press only woke the backlight — swallow it (release events too)
@@ -149,6 +149,9 @@ void setup() {
   cfgm5.clear_display = true;
   M5.begin(cfgm5);
   M5.BtnB.setHoldThresh(cfg::MENU_HOLD_MS);
+  // The FT6336 touch controller drops to a low-rate monitor mode after a few idle seconds
+  // and swallows quick taps until it wakes: keep it in active mode (CTRL register 0x86).
+  M5.In_I2C.writeRegister8(0x38, 0x86, 0x00, 400000);
 
   settings::load(g_settings);
   ui::begin(g_settings.brightness);

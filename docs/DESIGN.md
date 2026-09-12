@@ -74,6 +74,10 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
   recreate → intermittent IDLE0 panic). Decode task and `audio.loop()` on opposite cores.
 - `cfg.internal_spk = false` and `internal_mic = false` in `M5.config()`, or M5Unified's own
   speaker driver fights for the I2S peripheral on the CoreS3.
+- The **FT6336 touch controller** falls back to a low-rate monitor mode after a few idle
+  seconds (M5GFX leaves the default) and quick taps after idling get lost: write `0x00` to
+  its CTRL register `0x86` (I2C `0x38` on `M5.In_I2C`) once at boot to keep it active. The
+  wake logic also accepts any touched sample, not only the first (`isPressed`).
 - The **CoreS3 SE has no IMU** (verified 2026-09-12: `M5.Imu.getType()` = `imu_none`), unlike
   the CoreS3 with its BMI270. The motion-wake code in `supervisor` stays dormant on the SE.
 
