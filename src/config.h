@@ -27,7 +27,7 @@ constexpr uint8_t  VOL_DEFAULT    = 60;    // codec DAC volume, percent
 constexpr uint8_t  VOL_STEP       = 5;
 constexpr uint8_t  BRIGHT_DEFAULT = 160;   // 0..255
 constexpr uint8_t  BRIGHT_MIN     = 10;
-constexpr uint8_t  DIM_LEVEL      = 6;     // backlight while idle-dimmed
+constexpr uint8_t  DIM_PERCENT    = 40;    // idle backlight, as a share of the set brightness
 
 constexpr uint32_t UI_PERIOD_MS       = 100;
 constexpr uint32_t BTN_REPEAT_DELAY   = 400;

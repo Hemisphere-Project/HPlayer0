@@ -95,6 +95,10 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
 6. (Fire, if ever re-added, switch A: M5Unified's table gives BCLK GPIO13, LRCK GPIO12,
    DOUT GPIO15, MCLK GPIO0 — GPIO0 is MCLK-capable on a classic ESP32.)
 
+Reboot-at-playlist-end proven 2026-09-12 08:22 on the bench flavour (`HP_TEST_REBOOT_MS=600000`):
+last track ended at 873 s uptime, "playlist ended, scheduled reboot" logged, clean reboot,
+playback resumed on the first file.
+
 Bench log 2026-09-11 (CoreS3 SE, 30 GB card, 6 files: wav, flac, m4a, ogg, opus, mp3):
 boot to first sound in under a second, module found, position tracks real time, heap flat
 at 192 KB free across the run, transitions open the next file at the end-of-file event.

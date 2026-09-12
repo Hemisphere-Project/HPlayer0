@@ -91,7 +91,8 @@ void tick(bool menuOpen) {
   // --- idle dim ------------------------------------------------------------------------
   if (g_s->dimAfterS && !g_dimmed && !menuOpen && now - g_lastInput > (uint32_t)g_s->dimAfterS * 1000UL) {
     g_dimmed = true;
-    M5.Display.setBrightness(cfg::DIM_LEVEL);
+    uint8_t dim = (uint8_t)((uint16_t)g_s->brightness * cfg::DIM_PERCENT / 100);
+    M5.Display.setBrightness(dim < cfg::BRIGHT_MIN ? cfg::BRIGHT_MIN : dim);
   }
 
   // --- module LEDs -----------------------------------------------------------------------
@@ -116,7 +117,7 @@ void tick(bool menuOpen) {
 #endif
   if (rebootAfterMs && now > rebootAfterMs) player::requestRebootAtWrap();
   if (player::rebootPending()) {
-    log_w("playlist ended, scheduled reboot after %luh uptime", (unsigned long)(now / 3600000UL));
+    log_w("playlist ended, scheduled reboot after %lu min uptime", (unsigned long)(now / 60000UL));
     settings::flushNow(*g_s);
     delay(200);
     ESP.restart();

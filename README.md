@@ -52,7 +52,8 @@ green playing, blue starting or menu, orange no media, red no card or failure.
   (every 6 / 12 / 24 / 48 h of uptime, taken at the end of the playlist so playback restarts
   from the first media), USB drive mode, version, uptime, heap, track count, sync state,
   reboot now, exit.
-- When the backlight is dimmed, the first press only wakes it.
+- When idle, the backlight dims to 40 % of the set brightness; the first press or touch
+  only wakes it.
 
 ## USB drive mode
 
