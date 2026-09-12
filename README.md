@@ -36,20 +36,22 @@ green playing, blue starting or menu, orange no media, red no card or failure.
 
 ## Screen, buttons and menu
 
-- Up to seven files, the whole list is on screen and the playing row's frame moves down
-  it. Longer lists are a window centred on the playing track that wraps around the ends;
-  **drag the list** to browse, it recentres six seconds after the last touch. The playing
+- The list is centred on the playing track and never wraps: rows beyond the first and the
+  last file stay blank. **Drag the list** to browse (it stops at the ends), it recentres six
+  seconds after the last touch or when the track changes. The playing
   row shows its number, a play mark, the title over the full width (scrolling when it does
   not fit), a progress bar and a time chip on the frame's top-right corner. Accented
   titles render (Latin-1). **Tap a row to play that track.**
 - **Left / right**: volume in steps of 5, hold to repeat. Stored 2 s after the last change.
   Volume 0 mutes the DAC.
-- **Center**: opens the menu. In the menu, left / right change the selected value, center
-  goes to the next entry, **hold center** leaves.
+- **Center**: opens the menu. The menu is the same wheel as the list: the selected entry
+  sits in the centre, drag to move it, tap an entry to select it and again to act. Left /
+  right change the selected value, center (NEXT) steps to the next entry, **hold center**
+  leaves.
 - Menu entries: brightness, dim after (idle backlight), module LED level, auto reboot
   (every 6 / 12 / 24 / 48 h of uptime, taken at the end of the playlist so playback restarts
-  from the first media), version, uptime, heap, track count, sync state, reboot now, exit.
-  Tapping an entry selects it, tapping it again acts on it.
+  from the first media), USB drive mode, version, uptime, heap, track count, sync state,
+  reboot now, exit.
 - When the backlight is dimmed, the first press only wakes it.
 
 ## USB drive mode

@@ -14,7 +14,7 @@ bool g_open = false;
 size_t g_sel = 0;
 
 enum Item : size_t {
-  USB_DRIVE = 0, BRIGHTNESS, DIM, LED, REBOOT_EVERY,
+  BRIGHTNESS = 0, DIM, LED, REBOOT_EVERY, USB_DRIVE,
   INFO_VERSION, INFO_UPTIME, INFO_HEAP, INFO_TRACKS, INFO_SYNC,
   REBOOT_NOW, EXIT, COUNT
 };
@@ -103,7 +103,7 @@ bool editable(size_t i) {
 
 void label(size_t i, char* out, size_t n) {
   static const char* const names[COUNT] = {
-      "USB drive mode", "Brightness", "Dim after", "Module LEDs", "Auto reboot",
+      "Brightness", "Dim after", "Module LEDs", "Auto reboot", "USB drive mode",
       "Version", "Uptime", "Heap free", "Tracks", "Sync",
       "Reboot now", "Exit"};
   strlcpy(out, i < COUNT ? names[i] : "?", n);

@@ -106,6 +106,9 @@ void handleInput(uint32_t now) {
   if (!menu::isOpen()) {
     if (t.isPressed() && t.y < 240) ui::dragBy(t.deltaY(), player::snapshot(), library::count(), now);
     if (t.wasReleased()) ui::dragEnd(player::snapshot(), library::count(), now);
+  } else {
+    if (t.isPressed() && t.y < 240) ui::menuDragBy(t.deltaY(), now);
+    if (t.wasReleased()) ui::menuDragEnd(now);
   }
   if (t.wasClicked() && t.y < 240) {
     if (g_swallowTap) g_swallowTap = false;

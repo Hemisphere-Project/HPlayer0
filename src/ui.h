@@ -27,6 +27,8 @@ void render(const PlayerSnapshot& s, const UiStatus& st);
 bool animating();                 // a marquee is running: keep rendering at UI_PERIOD_MS
 int trackAtY(int y, const PlayerSnapshot& s, size_t count);   // list row under a touch, -1 if none
 int menuItemAtY(int y);                                        // menu entry under a touch, -1 if none
+void menuDragBy(int dy, uint32_t now);                         // the menu is the same wheel: drag moves it,
+void menuDragEnd(uint32_t now);                                //   the centred entry is the selection
 int modalHit(int x, int y);                                    // offer modal: 1 = YES, 0 = NO, -1 = none
 // touch browsing: drag the list (pixels accumulate into rows); it recentres on the playing
 // track a few seconds after the last touch, or when the track changes

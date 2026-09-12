@@ -43,9 +43,10 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
   Orbitron for the header. VT323 was tried first and judged too hard; M5GFX's built-in
   DejaVu fonts are ASCII-only, which is why the very first build drew squares for `é`.
 - **Touch**: the CoreS3 SE screen is a touch panel. Tap a list row to play it, tap a menu
-  entry to select it and again to act. Drag the list to browse when it is longer than the
-  seven rows (one row per 24 px, wraps, recentres after 6 s idle or on a track change);
-  shorter lists are drawn whole and static so every file stays visible whatever plays.
+  entry to select it and again to act. Drag the list to browse: pixel-smooth, row snap on
+  release, eased recentre after 6 s idle or on a track change; no wrap-around (Thomas: no
+  last file before 01, no first file after the last), blank rows beyond the ends, the drag
+  stops there. The menu is the same wheel with the selected entry in the centre.
   M5Unified keeps mapping the strip under the LCD (y ≥ 240) to BtnA/B/C, so the three
   button roles are unchanged. The header's middle dot in `HPLAYER·0` is drawn by hand:
   Orbitron's TTF has no U+00B7 glyph and the generator emits a tofu box for it.

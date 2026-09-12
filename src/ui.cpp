@@ -61,7 +61,6 @@ const lgfx::GFXfont& F_ROW   = hpfonts::ShareTech_18;
 const lgfx::GFXfont& F_CUR   = hpfonts::ShareTech_22;
 const lgfx::GFXfont& F_SMALL = hpfonts::ShareTech_16;
 const lgfx::GFXfont& F_TIME  = hpfonts::ShareTechMono_15;
-const lgfx::GFXfont& F_VOL   = hpfonts::ShareTechMono_18;
 
 // marquee state for the playing row
 int g_mqTrack = -1;
@@ -127,7 +126,7 @@ void drawTop(const PlayerSnapshot& s, const UiStatus& st) {
   int leftEnd = 8 + brandWidth(g_cv);
 
   char b[40];
-  g_cv.setFont(&F_VOL);
+  g_cv.setFont(&F_TIME);   // same size as the time readout
   g_cv.setTextDatum(middle_right);
   if (s.volume == 0) {
     strlcpy(b, "MUTE", sizeof(b));
@@ -136,7 +135,7 @@ void drawTop(const PlayerSnapshot& s, const UiStatus& st) {
     snprintf(b, sizeof(b), "VOL %u", s.volume);
     g_cv.setTextColor(C_YEL, C_BG);
   }
-  g_cv.drawString(b, W - 8, TOP_H / 2);
+  g_cv.drawString(b, W - 8, TOP_H / 2 + 1);
   int rightStart = W - 8 - g_cv.textWidth(b);
   if (st.syncLinked) {
     g_cv.fillCircle(rightStart - 10, TOP_H / 2, 3, C_GRN);
@@ -275,29 +274,20 @@ void drawOtherRow(int idx, int y, int dist, bool aboveCurrent) {
   g_cv.drawString(title, tx, cy);
 }
 
-// The window is centred on the playing track plus the browse offset. Lists longer than
-// the window wrap around their ends; shorter ones leave blank rows beyond the ends, and a
-// drag brings the hidden files into view (the centre is clamped to the list).
+// The window is centred on the playing track plus the browse offset. The list never wraps:
+// rows beyond its ends stay blank, and a drag brings hidden files into view with the
+// window centre clamped to the list (nothing before the first file, nothing after the last).
 int trackAtRow(int r, int centre, int n) {
   int idx = centre + (r - CENTER_ROW);
-  if (n > ROWS) return ((idx % n) + n) % n;
   return (idx >= 0 && idx < n) ? idx : -1;
 }
 
 int centreFor(int playing, int browse, int n) {
-  if (n > ROWS) return (((playing + browse) % n) + n) % n;
   int c = playing + browse;
   return c < 0 ? 0 : (c >= n ? n - 1 : c);
 }
 
-int rowOfTrack(int track, int centre, int n) {
-  int d = track - centre;
-  if (n > ROWS) {
-    d = ((d % n) + n) % n;
-    if (d > n / 2) d -= n;
-  }
-  return CENTER_ROW + d;
-}
+int rowOfTrack(int track, int centre, int) { return CENTER_ROW + (track - centre); }
 
 // pixel y of a track's row in the layout for a given window centre
 int yOfTrack(int track, int playing, int centre, int n) {
@@ -307,10 +297,8 @@ int yOfTrack(int track, int playing, int centre, int n) {
 // change the row offset without moving the picture: the shift absorbs the layout change
 // exactly, including the taller playing row moving through the window
 void setBrowse(int browse, int playing, int n) {
-  if (n <= ROWS) {
-    if (playing + browse < 0) browse = -playing;
-    if (playing + browse > n - 1) browse = n - 1 - playing;
-  }
+  if (playing + browse < 0) browse = -playing;
+  if (playing + browse > n - 1) browse = n - 1 - playing;
   if (browse == g_browse) return;
   int oldC = centreFor(playing, g_browse, n), newC = centreFor(playing, browse, n);
   g_shift += yOfTrack(playing, playing, oldC, n) - yOfTrack(playing, playing, newC, n);
@@ -357,19 +345,39 @@ void drawList(const PlayerSnapshot& s, const UiStatus& st, uint32_t now) {
   g_cv.clearClipRect();
 }
 
-size_t menuFirst() {
-  size_t sel = menu::selected();
-  return sel >= (size_t)ROWS ? sel - ROWS + 1 : 0;
-}
+// The menu is a wheel like the playlist: the selected entry sits in the centre row, the
+// list carries a pixel shift that follows the finger and eases back, no wrap-around.
+float g_mnShift = 0;
+bool g_mnAnim = false, g_mnTouching = false;
+int g_mnLastSel = -1;
+uint32_t g_mnLastTouch = 0;
 
 void drawMenu() {
   g_cv.fillRect(0, LIST_Y, W, BOT_Y - LIST_Y, C_BG);
-  size_t n = menu::count();
-  size_t sel = menu::selected();
-  size_t first = menuFirst();
-  for (size_t r = 0; r < (size_t)ROWS && first + r < n; ++r) {
-    size_t i = first + r;
-    int y = LIST_Y + r * ROW_H;
+  int n = (int)menu::count();
+  int sel = (int)menu::selected();
+  if (g_mnLastSel < 0) g_mnLastSel = sel;
+  if (sel != g_mnLastSel && !g_mnTouching) {
+    // NEXT (or a tap) moved the selection: glide there instead of jumping, except on a wrap
+    int d = sel - g_mnLastSel;
+    if (d == 1 || d == -1) { g_mnShift += d * ROW_H; g_mnAnim = true; }
+    else { g_mnShift = 0; g_mnAnim = false; }
+    g_mnLastSel = sel;
+  }
+  if (g_mnAnim) {
+    g_mnShift *= 0.72f;
+    if (g_mnShift < 0.6f && g_mnShift > -0.6f) { g_mnShift = 0; g_mnAnim = false; }
+    g_viewGen++;
+  }
+  int shift = (int)lroundf(g_mnShift);
+  int extra = (shift < 0 ? -shift : shift) / ROW_H + 2;
+  g_cv.setClipRect(0, LIST_Y, W, BOT_Y - LIST_Y);
+  g_cv.setFont(&F_ROW);
+  for (int r = -extra; r < ROWS + extra; ++r) {
+    int i = sel + (r - CENTER_ROW);
+    if (i < 0 || i >= n) continue;
+    int y = LIST_Y + r * ROW_H + shift;
+    if (y + ROW_H <= LIST_Y || y >= BOT_Y) continue;
     int cy = y + ROW_H / 2 + 1;
     bool isSel = (i == sel);
     bool edit = menu::editable(i);
@@ -378,17 +386,18 @@ void drawMenu() {
       g_cv.fillRect(FRAME_X, y, W - 2 * FRAME_X, ROW_H, C_YEL_BG);
       g_cv.drawRect(FRAME_X, y, W - 2 * FRAME_X, ROW_H, C_YEL);
     }
+    int dist = r < CENTER_ROW ? CENTER_ROW - r : r - CENTER_ROW;
     char lab[24], val[40];
     menu::label(i, lab, sizeof(lab));
     menu::value(i, val, sizeof(val));
-    g_cv.setFont(&F_ROW);
     g_cv.setTextDatum(middle_left);
-    g_cv.setTextColor(isSel ? C_YEL : (edit ? C_CYAN : C_CYAN_D), bg);
+    g_cv.setTextColor(isSel ? C_YEL : (edit ? (dist == 1 ? C_CYAN_M : C_CYAN_D) : C_CYAN_D), bg);
     g_cv.drawString(lab, PAD_X, cy);
     g_cv.setTextDatum(middle_right);
     g_cv.setTextColor(isSel ? C_GRN : (edit ? C_GRN_D : C_CYAN_D), bg);
     g_cv.drawString(val, W - PAD_X, cy);
   }
+  g_cv.clearClipRect();
 }
 }  // namespace
 
@@ -492,8 +501,8 @@ void render(const PlayerSnapshot& s, const UiStatus& st) {
   push();
 }
 
-bool animating() { return g_mqCycle != 0 || g_anim || g_touching; }
-uint32_t renderPeriod() { return (g_anim || g_touching) ? 50 : (g_mqCycle != 0 ? 100 : 0); }
+bool animating() { return g_mqCycle != 0 || g_anim || g_touching || g_mnAnim || g_mnTouching; }
+uint32_t renderPeriod() { return (g_anim || g_touching || g_mnAnim || g_mnTouching) ? 50 : (g_mqCycle != 0 ? 100 : 0); }
 
 int trackAtY(int y, const PlayerSnapshot& s, size_t count) {
   int n = (int)count;
@@ -561,9 +570,43 @@ int modalHit(int x, int y) {
 
 int menuItemAtY(int y) {
   if (y < LIST_Y || y >= BOT_Y) return -1;
-  int r = (y - LIST_Y) / ROW_H;
-  size_t i = menuFirst() + r;
-  return i < menu::count() ? (int)i : -1;
+  int ly = y - (int)lroundf(g_mnShift);
+  int r = (ly - LIST_Y) / ROW_H;
+  if (ly < LIST_Y) r = -1;
+  int i = (int)menu::selected() + (r - CENTER_ROW);
+  return (i >= 0 && i < (int)menu::count()) ? i : -1;
+}
+
+void menuDragBy(int dy, uint32_t now) {
+  g_mnLastTouch = now;
+  g_mnTouching = true;
+  g_mnAnim = false;
+  if (dy > 60 || dy < -60 || dy == 0) return;
+  int n = (int)menu::count();
+  g_mnShift += dy;
+  for (int guard = 0; guard < 8; ++guard) {
+    int sel = (int)menu::selected();
+    if (g_mnShift >= ROW_H && sel > 0) { menu::select(sel - 1); g_mnShift -= ROW_H; }        // list down = earlier entry
+    else if (g_mnShift <= -ROW_H && sel < n - 1) { menu::select(sel + 1); g_mnShift += ROW_H; }
+    else {
+      if ((g_mnShift > 0 && sel == 0) || (g_mnShift < 0 && sel == n - 1)) g_mnShift = 0;   // no pull past the ends
+      break;
+    }
+  }
+  g_mnLastSel = (int)menu::selected();
+  g_viewGen++;
+}
+
+void menuDragEnd(uint32_t now) {
+  if (!g_mnTouching) return;
+  g_mnTouching = false;
+  g_mnLastTouch = now;
+  int n = (int)menu::count(), sel = (int)menu::selected();
+  if (g_mnShift > ROW_H / 2 && sel > 0) { menu::select(sel - 1); g_mnShift -= ROW_H; }
+  else if (g_mnShift < -ROW_H / 2 && sel < n - 1) { menu::select(sel + 1); g_mnShift += ROW_H; }
+  g_mnLastSel = (int)menu::selected();
+  g_mnAnim = true;
+  g_viewGen++;
 }
 
 }  // namespace ui
