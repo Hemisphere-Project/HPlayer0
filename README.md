@@ -42,7 +42,7 @@ green playing, blue starting or menu, orange no media, red no card or failure.
   row shows its number, a play mark, the title over the full width (scrolling when it does
   not fit), a progress bar and a time chip on the frame's top-right corner. Accented
   titles render (Latin-1). **Tap a row to play that track.**
-- **Left / right**: volume in steps of 5, hold to repeat (default 80). Stored 2 s after the
+- **Left / right**: volume by 1, hold to sweep (default 80). Stored 2 s after the
   last change. Volume 0 mutes the DAC.
 - **Center**: opens the menu. The menu is the same wheel as the list: the selected entry
   sits in the centre, drag to move it, tap an entry to select it and again to act. Left /
