@@ -78,6 +78,12 @@ Audio). Deadline Monday 2026-09-14. Decisions taken with Thomas that day are mar
   seconds (M5GFX leaves the default) and quick taps after idling get lost: write `0x00` to
   its CTRL register `0x86` (I2C `0x38` on `M5.In_I2C`) once at boot to keep it active. The
   wake logic also accepts any touched sample, not only the first (`isPressed`).
+- **Batteries and the DIN Base** (Thomas, 2026-09-13): with the DIN Base's own 500 mAh cell
+  feeding the bus, the Core's AXP2101 still sees VBUS when the 9 V PSU is cut, so "on
+  battery" is not detectable from software, and a software power-off would need a button
+  press to come back (a steady VBUS gives no insertion edge). Decision: remove both cells
+  (base and Core) for exhibition units. Fallback if a Core cell must stay: `M5.Power.setBatteryCharge(false)`
+  so it drains once and stays empty.
 - The **CoreS3 SE has no IMU** (verified 2026-09-12: `M5.Imu.getType()` = `imu_none`), unlike
   the CoreS3 with its BMI270. The motion-wake code in `supervisor` stays dormant on the SE.
 

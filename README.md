@@ -21,6 +21,12 @@ The CoreS3 SE is the only target. The I2S pins come from M5Unified's M-Bus table
 (switch A) may work with an `m5stack-fire` env, but nothing is built or tested for it. The
 Core Basic has no PSRAM, which this engine needs (`docs/DESIGN.md`).
 
+**Run it without batteries.** The CoreS3 SE carries a 500 mAh cell and the DIN Base with
+battery another one; both keep the bus at 5 V when the PSU is cut, so the player would not
+stop and, once powered off, would not restart when the PSU returns (no VBUS edge for the
+power chip). Disconnect the base's cell and the Core's cell: cutting the PSU then stops the
+box, plugging it back boots it, and no lithium cell sits at full charge for months.
+
 Audio comes out of the module's **TRRS headphone jack** (ES8388 DAC, headphone amplifier),
 which is what feeds the venue amplifier. The module's three RGB LEDs show the state:
 green playing, blue starting or menu, orange no media, red no card or failure.
